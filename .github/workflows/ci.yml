@@ -15,5 +15,9 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+      - name: Lint
+        run: npx @biomejs/biome check src/
+      - name: Type check
+        run: npx tsc --noEmit
       - name: Run tests
         run: bun test

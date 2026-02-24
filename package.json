@@ -1,5 +1,5 @@
 {
-  "name": "napkin",
+  "name": "napkin-ai",
   "version": "0.1.0",
   "description": "🧻 Obsidian-compatible CLI for agents",
   "type": "module",
