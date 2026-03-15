@@ -80,4 +80,46 @@ describe("init command", () => {
     expect(data.napkin).toBe(false);
     expect(data.obsidian).toBe(true);
   });
+
+  test("scaffolds template with dirs, files, and NAPKIN.md", async () => {
+    const logs: string[] = [];
+    const orig = console.log;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(" "));
+    await init({ json: true, path: tmpDir, template: "coding" });
+    console.log = orig;
+
+    const data = JSON.parse(logs.join(""));
+    expect(data.status).toBe("created");
+    expect(data.template).toBe("coding");
+    expect(data.files).toContain("NAPKIN.md");
+    expect(data.files).toContain("decisions/");
+    expect(data.files).toContain("guides/");
+
+    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "guides/_about.md"))).toBe(true);
+    // Templates dir with note templates
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Decision.md"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Guide.md"))).toBe(true);
+  });
+
+  test("template on existing vault adds template files", async () => {
+    await init({ quiet: true, path: tmpDir });
+    const logs: string[] = [];
+    const orig = console.log;
+    console.log = (...args: unknown[]) => logs.push(args.map(String).join(" "));
+    await init({ json: true, path: tmpDir, template: "company" });
+    console.log = orig;
+
+    const data = JSON.parse(logs.join(""));
+    expect(data.status).toBe("created");
+    expect(data.template).toBe("company");
+    expect(fs.existsSync(path.join(tmpDir, "runbooks"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Runbook.md"))).toBe(
+      true,
+    );
+  });
 });

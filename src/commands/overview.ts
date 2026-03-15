@@ -368,9 +368,7 @@ export async function overview(
     }),
     human: () => {
       console.log(
-        dim(
-          "WORKFLOW: overview (you are here) → search <query> → read <file>",
-        ),
+        dim("WORKFLOW: overview (you are here) → search <query> → read <file>"),
       );
       console.log("");
       if (context) {

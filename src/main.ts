@@ -31,7 +31,7 @@ import {
   dailyRead,
 } from "./commands/daily.js";
 import { file, files, folder, folders } from "./commands/files.js";
-import { init } from "./commands/init.js";
+import { init, initTemplates } from "./commands/init.js";
 import {
   backlinks,
   deadends,
@@ -91,9 +91,21 @@ program
   .command("init")
   .description("Initialize a new vault")
   .option("--path <path>", "Directory to initialize (default: cwd)")
+  .option(
+    "--template <name>",
+    "Scaffold with template: coding, personal, research",
+  )
   .action(async (opts, cmd) => {
     const root = { ...cmd.optsWithGlobals(), ...opts };
     await init(root);
+  });
+
+program
+  .command("templates")
+  .description("List available vault templates")
+  .action(async (_opts, cmd) => {
+    const root = cmd.optsWithGlobals();
+    await initTemplates(root);
   });
 
 program
