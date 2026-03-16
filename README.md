@@ -54,8 +54,8 @@ napkin is designed as a memory system for AI agents. Instead of dumping the full
 
 | Level | Command | Tokens | What it does |
 |-------|---------|--------|-------------|
-| 0 | `NAPKIN.md` | ~200 | Always-loaded context |
-| 1 | `napkin overview` | ~1-2k | Vault map with TF-IDF keywords |
+| 0 | `NAPKIN.md` | ~200 | Project context note |
+| 1 | `napkin overview` | ~1-2k | L0 + vault map with TF-IDF keywords |
 | 2 | `napkin search <query>` | ~2-5k | Ranked results with snippets |
 | 3 | `napkin read <file>` | ~5-20k | Full file content |
 
@@ -233,7 +233,7 @@ Files can be referenced two ways:
 napkin ships as a pi package with two extensions:
 
 ### napkin-context
-Injects NAPKIN.md into the agent's system prompt on session start. The agent gets Level 0 context for free.
+Injects the vault overview (Level 0 + Level 1) into the agent's system prompt on session start. The agent gets NAPKIN.md and the vault map with keywords for free.
 
 ### napkin-distill
 Forks the current session and spawns a sub-agent to distill knowledge into the vault. The sub-agent inherits the full conversation, uses napkin tools to read templates and create structured notes. Runs in the background.
