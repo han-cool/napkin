@@ -57,6 +57,7 @@ export default function (pi: ExtensionAPI) {
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
   let countdownHandle: ReturnType<typeof setInterval> | null = null;
   let lastDistillTimestamp = Date.now();
+  let lastSessionSize = 0;
   let isRunning = false;
   let activeProcess: ReturnType<typeof spawn> | null = null;
 
@@ -147,6 +148,15 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    // Skip if session hasn't changed since last distill
+    const currentSize = fs.existsSync(sessionFile)
+      ? fs.statSync(sessionFile).size
+      : 0;
+    if (currentSize > 0 && currentSize === lastSessionSize) {
+      lastDistillTimestamp = Date.now();
+      return;
+    }
+
     isRunning = true;
     const startTime = Date.now();
     let timerHandle: ReturnType<typeof setInterval> | null = null;
@@ -230,6 +240,7 @@ export default function (pi: ExtensionAPI) {
       });
 
       lastDistillTimestamp = Date.now();
+      lastSessionSize = currentSize;
 
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       if (ctx.hasUI && theme) {
@@ -273,6 +284,7 @@ export default function (pi: ExtensionAPI) {
 
       const savedTimestamp = lastDistillTimestamp;
       lastDistillTimestamp = 0;
+      lastSessionSize = 0; // bypass size check for manual trigger
       runDistill(ctx)
         .catch((err) => {
           if (ctx.hasUI) {
