@@ -1,6 +1,6 @@
 # napkin
 
-🧻 Knowledge system for AI agents. Local-first, file-based, progressively disclosed.
+🧻 Knowledge system for agents. Local-first, file-based, progressively disclosed.
 
 Every great idea started on a napkin.
 
@@ -50,7 +50,7 @@ my-project/
 
 ## Progressive Disclosure
 
-napkin is designed as a memory system for AI agents. Instead of dumping the full vault into context, it reveals information gradually:
+napkin is designed as a memory system for agents. Instead of dumping the full vault into context, it reveals information gradually:
 
 | Level | Command | Tokens | What it does |
 |-------|---------|--------|-------------|
