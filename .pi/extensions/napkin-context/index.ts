@@ -41,19 +41,27 @@ export default function (pi: ExtensionAPI) {
     hasVault = !!overview;
 
     if (overview) {
-      pi.sendMessage(
-        {
-          customType: "napkin-context",
-          content:
-            "## Napkin vault context\n" +
+      // Check if we already injected context in this session
+      const alreadyInjected = ctx.sessionManager
+        .getEntries()
+        .some(
+          (e) =>
+            e.type === "message" &&
+            e.message.role === "custom" &&
+            (e.message as any).customType === "napkin-context",
+        );
+
+      if (!alreadyInjected) {
+        ctx.sessionManager.appendCustomMessageEntry(
+          "napkin-context",
+          "## Napkin vault context\n" +
             "You have access to a napkin vault (Obsidian-compatible knowledge base). " +
             "Here is the vault overview. Use `napkin search <query>` to find specific content, " +
             "`napkin read <file>` to open files.\n\n" +
             overview,
-          display: true,
-        },
-        { deliverAs: "nextTurn" },
-      );
+          true,
+        );
+      }
     }
 
     if (ctx.hasUI) {
