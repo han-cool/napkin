@@ -20,6 +20,7 @@ bun run check                # Biome lint + format
 - `src/utils/vault.ts` — Vault discovery (walks up from cwd looking for .napkin/)
 - `src/utils/files.ts` — File listing, resolution (wikilink-style name or exact path)
 - `src/utils/frontmatter.ts` — YAML frontmatter parse/set/remove
+- `src/utils/config.ts` — Unified config (load/save/update, syncs to .obsidian/)
 - `src/utils/markdown.ts` — Extract headings, tasks, tags, links from markdown
 - `.pi/extensions/napkin-context/` — Pi extension: injects vault overview into system prompt
 - `.pi/extensions/distill/` — Pi extension: auto-distills conversations into vault
@@ -32,8 +33,8 @@ bun run check                # Biome lint + format
 project/
   .napkin/                  # The vault
     NAPKIN.md               # Level 0 context note
-    .obsidian/              # Obsidian compatibility
-    distill.json            # Distill extension config
+    config.json             # Unified config (syncs to .obsidian/)
+    .obsidian/              # Obsidian compatibility (auto-generated)
     decisions/              # Template-defined dirs
     architecture/
     Templates/              # Note templates

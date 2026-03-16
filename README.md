@@ -40,10 +40,11 @@ napkin read "Architecture"
 my-project/
   .napkin/                  # The vault
     NAPKIN.md               # Context note (Level 0)
+    config.json             # Unified config (syncs to .obsidian/)
     decisions/              # Template-defined directories
     architecture/
     Templates/              # Note templates
-    .obsidian/              # Obsidian compatibility
+    .obsidian/              # Obsidian compatibility (auto-generated)
   src/                      # Your project (not in vault)
 ```
 
@@ -73,7 +74,7 @@ napkin init --template research  # papers/, concepts/, questions/, experiments/
 Each template includes directory structure, `_about.md` files, Obsidian note templates, and a `NAPKIN.md` skeleton.
 
 ```bash
-napkin templates                 # List available templates
+napkin init --list               # List available templates
 ```
 
 ## Commands
@@ -112,6 +113,8 @@ napkin file list --ext md             # Filter by extension
 napkin file list --folder Projects    # Filter by folder
 napkin file folder <path>             # Folder info
 napkin file folders                   # List all folders
+napkin file outline --file "note"     # Heading tree
+napkin file wordcount --file "note"   # Word + character count
 ```
 
 ### Daily notes — `napkin daily`
@@ -201,13 +204,12 @@ napkin bookmark list                  # List bookmarks
 napkin bookmark add --file "note"     # Bookmark a file
 ```
 
-### Other
+### Config — `napkin config`
 
 ```bash
-napkin outline --file "note"          # Heading tree
-napkin wordcount --file "note"        # Word + character count
-napkin onboard                        # Agent instructions
-napkin templates                      # List vault templates
+napkin config show                    # Show full config
+napkin config get --key search.limit  # Get a value
+napkin config set --key search.limit --value 50
 ```
 
 ## File Resolution
@@ -221,15 +223,16 @@ Files can be referenced two ways:
 napkin ships as a pi package with two extensions:
 
 ### napkin-context
-Automatically injects the vault overview (NAPKIN.md + folder keywords) into the agent's system prompt at session start. The agent gets Level 0 + Level 1 context for free.
+Injects NAPKIN.md into the agent's system prompt on session start. The agent gets Level 0 context for free.
 
 ### napkin-distill
-Background KB distillation. Runs on a configurable interval, reads new conversation content, calls a model to extract structured knowledge, and writes notes to the vault using your templates.
+Forks the current session and spawns a sub-agent to distill knowledge into the vault. The sub-agent inherits the full conversation, uses napkin tools to read templates and create structured notes. Runs in the background.
 
-Enable with:
 ```bash
-napkin config set --key distill.enabled --value true
+napkin config set --key distill.enabled --value true    # Enable auto-distill
 ```
+
+Or trigger manually in pi: `/distill`
 
 ## Development
 
