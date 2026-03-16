@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { createServer } from "node:http";
 import { basename, extname, join, relative } from "node:path";
-import { open } from "glimpseui";
+import { platform } from "node:process";
 import type { OutputOptions } from "../utils/output.js";
-import { error } from "../utils/output.js";
+import { error, info } from "../utils/output.js";
 
 interface GraphNode {
   id: string;
@@ -401,6 +402,60 @@ document.addEventListener('keydown', (e) => {
 `;
 }
 
+async function openWithGlimpse(html: string): Promise<void> {
+  const { open } = await import("glimpseui");
+  const win = open(html, {
+    width: 1200,
+    height: 800,
+    title: "napkin graph",
+  });
+
+  win.on("message", (data: Record<string, unknown>) => {
+    if (data.dbg) {
+      console.log("[graph]", data.dbg);
+    }
+  });
+
+  await new Promise<void>((resolve) => {
+    win.on("closed", () => resolve());
+  });
+}
+
+async function openInBrowser(html: string): Promise<void> {
+  // Wrap fragment in a full HTML document for the browser
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>napkin graph</title></head><body>${html}</body></html>`;
+
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+    res.end(fullHtml);
+  });
+
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", () => {
+      const addr = server.address();
+      if (!addr || typeof addr === "string") return;
+      const url = `http://127.0.0.1:${addr.port}`;
+      info(`Graph running at ${url} — press Ctrl+C to stop`);
+
+      // Open browser
+      const { exec } = require("node:child_process");
+      const cmd =
+        platform === "win32"
+          ? `start ${url}`
+          : platform === "linux"
+            ? `xdg-open ${url}`
+            : `open ${url}`;
+      exec(cmd);
+
+      // Keep running until interrupted
+      process.on("SIGINT", () => {
+        server.close();
+        resolve();
+      });
+    });
+  });
+}
+
 export async function graph(
   _args: Record<string, unknown>,
   options: OutputOptions & { vault?: string },
@@ -419,19 +474,14 @@ export async function graph(
   );
   const html = buildHTML(graphDataB64);
 
-  const win = open(html, {
-    width: 1200,
-    height: 800,
-    title: "napkin graph",
-  });
-
-  win.on("message", (data: Record<string, unknown>) => {
-    if (data.dbg) {
-      console.log("[graph]", data.dbg);
+  if (platform === "darwin") {
+    try {
+      await openWithGlimpse(html);
+    } catch {
+      // Glimpse not available, fall back to browser
+      await openInBrowser(html);
     }
-  });
-
-  await new Promise<void>((resolve) => {
-    win.on("closed", () => resolve());
-  });
+  } else {
+    await openInBrowser(html);
+  }
 }
