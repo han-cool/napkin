@@ -55,6 +55,7 @@ Be selective. Only capture knowledge useful to someone working on this project l
 
 export default function (pi: ExtensionAPI) {
   let intervalHandle: ReturnType<typeof setInterval> | null = null;
+  let countdownHandle: ReturnType<typeof setInterval> | null = null;
   let lastDistillTimestamp = Date.now();
   let isRunning = false;
   let activeProcess: ReturnType<typeof spawn> | null = null;
@@ -75,15 +76,25 @@ export default function (pi: ExtensionAPI) {
       return;
     }
 
+    lastDistillTimestamp = Date.now();
+    const intervalMs = config.intervalMinutes * 60 * 1000;
+
     if (ctx.hasUI) {
       const theme = ctx.ui.theme;
-      ctx.ui.setStatus(
-        "napkin-distill",
-        theme.fg("dim", `distill: ${config.intervalMinutes}m`),
-      );
+      const updateCountdown = () => {
+        if (isRunning) return;
+        const remaining = Math.max(0, intervalMs - (Date.now() - lastDistillTimestamp));
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        const display = mins > 0 ? `${mins}m${secs.toString().padStart(2, "0")}s` : `${secs}s`;
+        ctx.ui.setStatus(
+          "napkin-distill",
+          theme.fg("dim", `distill: ${display}`),
+        );
+      };
+      updateCountdown();
+      countdownHandle = setInterval(updateCountdown, 1000);
     }
-
-    lastDistillTimestamp = Date.now();
 
     intervalHandle = setInterval(
       () => {
@@ -97,11 +108,15 @@ export default function (pi: ExtensionAPI) {
           }
         });
       },
-      config.intervalMinutes * 60 * 1000,
+      intervalMs,
     );
   });
 
   pi.on("session_shutdown", async () => {
+    if (countdownHandle) {
+      clearInterval(countdownHandle);
+      countdownHandle = null;
+    }
     if (intervalHandle) {
       clearInterval(intervalHandle);
       intervalHandle = null;
