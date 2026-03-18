@@ -94,14 +94,15 @@ napkin init --list               # List available templates
 napkin vault                          # Vault info
 napkin overview                       # Vault map with keywords
 napkin read <file>                    # Read file contents
-napkin create --name "Note" --content "Hello"
-napkin append --file "Note" --content "More text"
-napkin prepend --file "Note" --content "Top line"
-napkin move --file "Note" --to Archive
-napkin rename --file "Note" --name "Renamed"
-napkin delete --file "Note"           # Move to .trash
+napkin create "Note" "Hello"          # Create with content
+napkin append "Note" "More text"      # Append to file
+napkin prepend "Note" "Top line"      # Prepend after frontmatter
+napkin move "Note" Archive            # Move to folder
+napkin rename "Note" "Renamed"        # Rename file
+napkin delete "Note"                  # Move to .trash
 napkin search "meeting"               # Ranked search with snippets
 napkin search "TODO" --no-snippets    # Files only
+echo "piped content" | napkin append "Note"  # Stdin support
 ```
 
 ### Files & folders — `napkin file`
@@ -113,8 +114,8 @@ napkin file list --ext md             # Filter by extension
 napkin file list --folder Projects    # Filter by folder
 napkin file folder <path>             # Folder info
 napkin file folders                   # List all folders
-napkin file outline --file "note"     # Heading tree
-napkin file wordcount --file "note"   # Word + character count
+napkin file outline "note"             # Heading tree
+napkin file wordcount "note"          # Word + character count
 ```
 
 ### Daily notes — `napkin daily`
@@ -123,8 +124,8 @@ napkin file wordcount --file "note"   # Word + character count
 napkin daily today                    # Create today's daily note
 napkin daily path                     # Print daily note path
 napkin daily read                     # Print daily note contents
-napkin daily append --content "- [ ] Buy groceries"
-napkin daily prepend --content "## Morning"
+napkin daily append "- [ ] Buy groceries"
+napkin daily prepend "## Morning"
 ```
 
 ### Tags — `napkin tag`

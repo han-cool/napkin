@@ -46,7 +46,7 @@ project/
 - **Output triple**: Every command supports `--json`, `--quiet`, and human-readable output
 - **Vault auto-detect**: Walks up from cwd looking for `.napkin/` directory
 - **`.napkin/` is the vault root**: All vault content lives inside `.napkin/`, not the project root
-- **File resolution**: `--file` resolves by name (like wikilinks), `--path` requires exact path from vault root
+- **File resolution**: positional `<file>` or `--file` resolves by name (like wikilinks), `--path` requires exact path from vault root
 - **No Obsidian dependency**: Pure file-system operations on markdown files
 - **Progressive disclosure**: overview → search → read (4 levels, L0-L3)
 - **NAPKIN.md**: Level 0 context note, rendered at top of overview

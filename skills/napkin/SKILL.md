@@ -72,7 +72,15 @@ napkin config set --key search.limit --value 50
 
 ## Syntax
 
-napkin uses standard CLI flags. Quote values with spaces:
+Commands accept positional arguments. Quote values with spaces:
+
+```bash
+napkin create "My Note" "Hello world"
+napkin append "My Note" "More text"
+echo "piped content" | napkin append "My Note"
+```
+
+Flags also work (backward compatible):
 
 ```bash
 napkin create --name "My Note" --content "Hello world"
@@ -89,7 +97,7 @@ napkin create --name "My Note" --content "Hello world"
 
 ### File targeting
 
-- `--file <name>` — resolves like a wikilink (name only, no path or extension needed)
+- Positional `<file>` or `--file <name>` — resolves like a wikilink (name only, no path or extension needed)
 - `--path <path>` — exact path from vault root, e.g. `Projects/note.md`
 
 ## Commands
@@ -118,15 +126,15 @@ napkin file folders --total                 # Count folders
 ### Read & write
 
 ```bash
-napkin read <file>                          # Read file contents
-napkin create --name "Note" --content "# Hello"
-napkin create --name "Note" --path "Projects" --template "Meeting Note"
-napkin append --file "Note" --content "New line at end"
-napkin prepend --file "Note" --content "New line after frontmatter"
-napkin move --file "Note" --to Archive
-napkin rename --file "Note" --name "Renamed Note"
-napkin delete --file "Note"                 # Move to .trash
-napkin delete --file "Note" --permanent     # Delete permanently
+napkin read "Note"                          # Read file contents
+napkin create "Note" "# Hello"              # Create with content
+napkin create "Note" --path "Projects" --template "Meeting Note"
+napkin append "Note" "New line at end"
+napkin prepend "Note" "New line after frontmatter"
+napkin move "Note" Archive
+napkin rename "Note" "Renamed Note"
+napkin delete "Note"                        # Move to .trash
+napkin delete "Note" --permanent            # Delete permanently
 ```
 
 ### Daily notes — `napkin daily`
@@ -137,8 +145,8 @@ Reads config from `.napkin/.obsidian/daily-notes.json` (folder, format, template
 napkin daily today                          # Create today's daily note (from template if configured)
 napkin daily path                           # Print daily note path
 napkin daily read                           # Print daily note contents
-napkin daily append --content "- [ ] Buy groceries"
-napkin daily prepend --content "## Morning"
+napkin daily append "- [ ] Buy groceries"
+napkin daily prepend "## Morning"
 ```
 
 ### Search
@@ -209,9 +217,9 @@ napkin link deadends                        # Files with no outgoing links
 ### Outline
 
 ```bash
-napkin outline --file "note"                # Heading tree
-napkin outline --file "note" --format md    # Markdown list
-napkin outline --file "note" --format json  # JSON array
+napkin file outline "note"                  # Heading tree
+napkin file outline "note" --format md      # Markdown list
+napkin file outline "note" --format json    # JSON array
 ```
 
 ### Templates — `napkin template`
@@ -276,9 +284,9 @@ New nodes auto-position to the right of existing content.
 ### Word count
 
 ```bash
-napkin wordcount --file "note"              # Words + characters
-napkin wordcount --file "note" --words      # Words only
-napkin wordcount --file "note" --characters # Characters only
+napkin file wordcount "note"                # Words + characters
+napkin file wordcount "note" --words        # Words only
+napkin file wordcount "note" --characters   # Characters only
 ```
 
 ### Agent onboarding
