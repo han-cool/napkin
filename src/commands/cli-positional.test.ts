@@ -26,9 +26,13 @@ async function run(
       cwd: v.path,
       stdout: "pipe",
       stderr: "pipe",
-      stdin: stdin ? new Blob([stdin]) : undefined,
+      stdin: stdin ? "pipe" : undefined,
     },
   );
+  if (stdin && proc.stdin) {
+    proc.stdin.write(stdin);
+    proc.stdin.end();
+  }
   const [stdout, stderr] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
