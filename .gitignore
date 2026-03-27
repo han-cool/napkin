@@ -18,6 +18,10 @@ dist
 bun.lockb
 bun.lock
 
+# Benchmark data and results (download on demand)
+bench/data/
+bench/results/
+
 # dotenv
 .env
 .env.local
