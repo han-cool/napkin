@@ -10,8 +10,8 @@ Three dataset sizes:
 
 | Dataset | Sessions/question | Tokens | Tests |
 |---------|-------------------|--------|-------|
-| Oracle | 1–6 | ~5k | Reading comprehension |
-| S | ~40–60 | ~115k | Retrieval + reading |
+| Oracle | 1-6 | ~5k | Reading comprehension |
+| S | ~40-60 | ~115k | Retrieval + reading |
 | M | ~500 | ~1.5M | Retrieval at scale |
 
 ### Results
@@ -24,7 +24,7 @@ Three dataset sizes:
 | S | **91.0%** | 86% (Emergence AI) | 64% (full context) |
 | M | **83.0%** | 72% (GPT-4o RAG) | 72% |
 
-Zero preprocessing — no embeddings, no graph construction, no summary extraction. Just BM25 search on per-round markdown notes.
+Zero preprocessing - no embeddings, no graph construction, no summary extraction. Just BM25 search on per-round markdown notes.
 
 Per-ability breakdown (S dataset, Sonnet):
 
@@ -74,7 +74,7 @@ Data is downloaded automatically from HuggingFace on first run (except M which n
 
 - **Per-round notes** instead of full sessions: each note is ~2.5k chars instead of ~15k, giving BM25 search better granularity
 - **Day directories**: napkin's overview extracts TF-IDF keywords per directory, giving the agent a topical map of the vault
-- **Full assistant responses included**: many questions ask about what the assistant said previously — truncating assistant content drops answers
+- **Full assistant responses included**: many questions ask about what the assistant said previously - truncating assistant content drops answers
 - **Scenario date in system prompt**: prevents the model from using its real current date for relative time calculations ("X days ago")
 - **`--system-prompt` instead of `--append-system-prompt`**: avoids pi injecting a conflicting real date
 

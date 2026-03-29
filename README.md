@@ -59,6 +59,20 @@ napkin is designed as a memory system for agents. Instead of dumping the full va
 | 2 | `napkin search <query>` | ~2-5k | Ranked results with snippets |
 | 3 | `napkin read <file>` | ~5-20k | Full file content |
 
+## Benchmarks
+
+napkin includes agentic retrieval benchmarks in `bench/`. The headline result is [LongMemEval](https://arxiv.org/abs/2410.10813) (ICLR 2025), which tests long-term conversational memory across 500 questions.
+
+| Dataset | Sessions | pi + napkin | Best prior system | GPT-4o full context |
+|---------|----------|-------------|-------------------|---------------------|
+| Oracle | 1-6 | **92.0%** | 92.4% | 92.4% |
+| S | ~40 | **91.0%** | 86% | 64% |
+| M | ~500 | **83.0%** | 72% | n/a |
+
+Zero preprocessing. No embeddings, no graphs, no summaries. Just BM25 search on markdown files.
+
+See [`bench/README.md`](bench/README.md) for details and usage.
+
 ## Templates
 
 Scaffold a vault with a domain-specific structure:
@@ -244,20 +258,6 @@ napkin config set --key distill.enabled --value true    # Enable auto-distill
 ```
 
 Or trigger manually in pi: `/distill`
-
-## Benchmarks
-
-napkin includes agentic retrieval benchmarks in `bench/`. The headline result is [LongMemEval](https://arxiv.org/abs/2410.10813) (ICLR 2025), which tests long-term conversational memory across 500 questions.
-
-| Dataset | Sessions | pi + napkin | Best prior system | GPT-4o full context |
-|---------|----------|-------------|-------------------|---------------------|
-| Oracle | 1–6 | **92.0%** | 92.4% | 92.4% |
-| S | ~40 | **91.0%** | 86% | 64% |
-| M | ~500 | **83.0%** | 72% | — |
-
-Zero preprocessing — no embeddings, no graphs, no summaries. Just BM25 search on markdown files.
-
-See [`bench/README.md`](bench/README.md) for details and usage.
 
 ## Development
 
