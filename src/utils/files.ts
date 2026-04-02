@@ -32,7 +32,7 @@ export function listFiles(
     "node_modules",
   ]);
   // Internal napkin files that shouldn't appear in vault content listings
-  const skipFiles = new Set(["config.json"]);
+  const skipFiles = new Set(["config.json", "search-cache.json"]);
 
   const baseDir = opts?.folder ? path.join(vaultPath, opts.folder) : vaultPath;
   if (!fs.existsSync(baseDir)) return results;
@@ -76,6 +76,7 @@ export function listFolders(
     ".git",
     ".trash",
     ".nanny",
+    ".napkin",
     "node_modules",
   ]);
 

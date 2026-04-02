@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { createTempVault } from "../utils/test-helpers.js";
 import { search } from "./search.js";
 
@@ -174,5 +176,71 @@ describe("search", () => {
     );
     const results = data.results as { score?: number }[];
     expect(results[0].score).toBeUndefined();
+  });
+
+  test("creates cache file after first search", async () => {
+    const cachePath = path.join(v.vaultPath, "search-cache.json");
+    expect(fs.existsSync(cachePath)).toBe(false);
+
+    await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha" }),
+    );
+
+    expect(fs.existsSync(cachePath)).toBe(true);
+  });
+
+  test("second search uses cache and returns same results", async () => {
+    // First search — builds and caches
+    const data1 = await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha", score: true }),
+    );
+
+    // Second search — should use cache
+    const data2 = await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha", score: true }),
+    );
+
+    const results1 = data1.results as { file: string; score: number }[];
+    const results2 = data2.results as { file: string; score: number }[];
+    expect(results1.map((r) => r.file)).toEqual(results2.map((r) => r.file));
+    expect(results1.map((r) => r.score)).toEqual(results2.map((r) => r.score));
+  });
+
+  test("cache invalidated when file changes", async () => {
+    // First search — builds cache
+    await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha" }),
+    );
+
+    // Modify a file
+    const filePath = path.join(v.vaultPath, "Projects/alpha.md");
+    const futureTime = Date.now() + 2000;
+    fs.utimesSync(filePath, futureTime / 1000, futureTime / 1000);
+
+    // Second search — cache should be invalidated, still returns results
+    const data = await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha" }),
+    );
+    const results = data.results as { file: string }[];
+    expect(results.map((r) => r.file)).toContain("Projects/alpha.md");
+  });
+
+  test("cache not used when searching a subfolder", async () => {
+    // Cache is folder-specific — searching with --path shouldn't use full-vault cache
+    await captureJson(() =>
+      search({ json: true, vault: v.path, query: "alpha" }),
+    );
+
+    const data = await captureJson(() =>
+      search({
+        json: true,
+        vault: v.path,
+        query: "alpha",
+        path: "Projects",
+      }),
+    );
+    const results = data.results as { file: string }[];
+    expect(results.length).toBe(1);
+    expect(results[0].file).toBe("Projects/alpha.md");
   });
 });

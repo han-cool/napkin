@@ -12,6 +12,11 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
+import {
+  computeFingerprint,
+  loadSearchCache,
+  saveSearchCache,
+} from "../utils/search-cache.js";
 import { findVault } from "../utils/vault.js";
 
 interface SearchOpts extends OutputOptions {
@@ -151,8 +156,48 @@ export async function search(opts: SearchOpts) {
   }
 
   const config = loadConfig(v.configPath);
-  const { index, docs } = buildIndex(v.contentPath, opts.path);
-  const backlinkCounts = buildBacklinkCounts(v.contentPath);
+
+  // Try to load cached index (only for full-vault searches, not subfolder)
+  const fingerprint = computeFingerprint(v.contentPath, opts.path);
+  const cached = loadSearchCache(v.configPath, fingerprint);
+
+  let index: MiniSearch;
+  let docs: DocRecord[];
+  let backlinkCounts: Map<string, number>;
+
+  if (cached) {
+    // Restore from cache — re-read file contents for snippets
+    index = MiniSearch.loadJSON(cached.index, {
+      fields: ["basename", "content"],
+      storeFields: ["file"],
+      searchOptions: {
+        boost: { basename: 2 },
+        fuzzy: 0.2,
+        prefix: true,
+      },
+    });
+    docs = cached.docs.map((d) => {
+      const fullPath = path.join(v.contentPath, d.file);
+      const content = fs.readFileSync(fullPath, "utf-8");
+      return { ...d, content };
+    });
+    backlinkCounts = new Map(Object.entries(cached.backlinkCounts));
+  } else {
+    // Build fresh index
+    const built = buildIndex(v.contentPath, opts.path);
+    index = built.index;
+    docs = built.docs;
+    backlinkCounts = buildBacklinkCounts(v.contentPath);
+
+    // Cache for next time
+    saveSearchCache(v.configPath, {
+      fingerprint,
+      index: JSON.stringify(index),
+      docs: docs.map(({ content: _, ...rest }) => rest),
+      backlinkCounts: Object.fromEntries(backlinkCounts),
+    });
+  }
+
   const results = index.search(opts.query);
   const contextLines = opts.snippetLines
     ? Number.parseInt(opts.snippetLines, 10)
