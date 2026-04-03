@@ -1,0 +1,16 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { resolveFile } from "../utils/files.js";
+import { extractHeadings, type Heading } from "../utils/markdown.js";
+
+export type { Heading };
+
+export function getOutline(vaultPath: string, fileRef: string): Heading[] {
+  const resolved = resolveFile(vaultPath, fileRef);
+  if (!resolved) {
+    throw new Error(`File not found: ${fileRef}`);
+  }
+
+  const content = fs.readFileSync(path.join(vaultPath, resolved), "utf-8");
+  return extractHeadings(content);
+}

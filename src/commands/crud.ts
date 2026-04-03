@@ -1,9 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { loadConfig } from "../utils/config.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles, resolveFile, suggestFile } from "../utils/files.js";
-import { parseFrontmatter } from "../utils/frontmatter.js";
+import { suggestFile } from "../utils/files.js";
 import {
   error,
   fileNotFound,
@@ -11,29 +8,32 @@ import {
   output,
   success,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function read(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!fileRef) {
     error("No file specified. Usage: napkin read <file>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, fileRef);
-  if (!resolved) {
-    fileNotFound(fileRef, suggestFile(v.contentPath, fileRef));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { path: string; content: string };
+  try {
+    result = n.read(fileRef);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(fileRef, suggestFile(n.vault.contentPath, fileRef));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const content = fs.readFileSync(path.join(v.contentPath, resolved), "utf-8");
-
   output(opts, {
-    json: () => ({ path: resolved, content }),
-    human: () => console.log(content),
+    json: () => result,
+    human: () => console.log(result.content),
   });
 }
 
@@ -48,48 +48,25 @@ export async function create(
     open?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
 
-  let targetPath: string;
-  if (opts.path) {
-    targetPath = opts.path.endsWith(".md") ? opts.path : `${opts.path}.md`;
-  } else {
-    const name = opts.name || "Untitled";
-    targetPath = `${name}.md`;
-  }
-
-  const fullPath = path.join(v.contentPath, targetPath);
-
-  if (fs.existsSync(fullPath) && !opts.overwrite) {
-    error(`File already exists: ${targetPath}. Use --overwrite to replace.`);
+  let result: { path: string; created: boolean };
+  try {
+    result = n.create({
+      name: opts.name,
+      path: opts.path,
+      content: opts.content,
+      template: opts.template,
+      overwrite: opts.overwrite,
+    });
+  } catch (e: unknown) {
+    error((e as Error).message);
     process.exit(EXIT_USER_ERROR);
   }
 
-  let content = opts.content || "";
-
-  if (opts.template) {
-    const config = loadConfig(v.configPath);
-    const templateRef =
-      resolveFile(v.contentPath, opts.template) ||
-      resolveFile(v.contentPath, `${config.templates.folder}/${opts.template}`);
-    if (templateRef) {
-      content = fs.readFileSync(path.join(v.contentPath, templateRef), "utf-8");
-    } else {
-      const tmplFiles = listFiles(v.contentPath, {
-        folder: config.templates.folder,
-        ext: "md",
-      }).map((f: string) => path.basename(f, ".md"));
-      fileNotFound(opts.template, tmplFiles.slice(0, 3));
-      process.exit(EXIT_NOT_FOUND);
-    }
-  }
-
-  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-  fs.writeFileSync(fullPath, content);
-
   output(opts, {
-    json: () => ({ path: targetPath, created: true }),
-    human: () => success(`Created ${targetPath}`),
+    json: () => result,
+    human: () => success(`Created ${result.path}`),
   });
 }
 
@@ -111,7 +88,7 @@ export async function append(
     inline?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use: napkin append <file> [content]");
     process.exit(EXIT_USER_ERROR);
@@ -124,16 +101,17 @@ export async function append(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let resolved: string;
+  try {
+    resolved = n.append(opts.file, opts.content, opts.inline);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
-
-  const fullPath = path.join(v.contentPath, resolved);
-  const existing = fs.readFileSync(fullPath, "utf-8");
-  const separator = opts.inline ? "" : "\n";
-  fs.writeFileSync(fullPath, existing + separator + opts.content);
 
   output(opts, {
     json: () => ({ path: resolved, appended: true }),
@@ -149,7 +127,7 @@ export async function prepend(
     inline?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use: napkin prepend <file> [content]");
     process.exit(EXIT_USER_ERROR);
@@ -162,23 +140,16 @@ export async function prepend(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  const fullPath = path.join(v.contentPath, resolved);
-  const existing = fs.readFileSync(fullPath, "utf-8");
-  const separator = opts.inline ? "" : "\n";
-
-  // Insert after frontmatter if present
-  const { properties, body, raw } = parseFrontmatter(existing);
-  if (Object.keys(properties).length > 0) {
-    const frontmatter = `---\n${raw}\n---\n`;
-    fs.writeFileSync(fullPath, frontmatter + opts.content + separator + body);
-  } else {
-    fs.writeFileSync(fullPath, opts.content + separator + existing);
+  let resolved: string;
+  try {
+    resolved = n.prepend(opts.file, opts.content, opts.inline);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
   output(opts, {
@@ -190,7 +161,7 @@ export async function prepend(
 export async function move(
   opts: OutputOptions & { vault?: string; file?: string; to?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -200,33 +171,28 @@ export async function move(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { from: string; to: string };
+  try {
+    result = n.move(opts.file, opts.to);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
-
-  let destPath = opts.to;
-  // If destination is a folder (no .md extension), move file into it keeping the name
-  if (!destPath.endsWith(".md")) {
-    destPath = path.join(destPath, path.basename(resolved));
-  }
-
-  const srcFull = path.join(v.contentPath, resolved);
-  const destFull = path.join(v.contentPath, destPath);
-  fs.mkdirSync(path.dirname(destFull), { recursive: true });
-  fs.renameSync(srcFull, destFull);
 
   output(opts, {
-    json: () => ({ from: resolved, to: destPath }),
-    human: () => success(`Moved ${resolved} → ${destPath}`),
+    json: () => result,
+    human: () => success(`Moved ${result.from} → ${result.to}`),
   });
 }
 
 export async function rename(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -236,59 +202,50 @@ export async function rename(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { from: string; to: string };
+  try {
+    result = n.rename(opts.file, opts.name);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const newName = opts.name.endsWith(".md") ? opts.name : `${opts.name}.md`;
-  const destPath = path.join(path.dirname(resolved), newName);
-  const srcFull = path.join(v.contentPath, resolved);
-  const destFull = path.join(v.contentPath, destPath);
-  fs.renameSync(srcFull, destFull);
-
   output(opts, {
-    json: () => ({ from: resolved, to: destPath }),
-    human: () => success(`Renamed ${resolved} → ${destPath}`),
+    json: () => result,
+    human: () => success(`Renamed ${result.from} → ${result.to}`),
   });
 }
 
 export async function del(
   opts: OutputOptions & { vault?: string; file?: string; permanent?: boolean },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  const fullPath = path.join(v.contentPath, resolved);
-
-  if (opts.permanent) {
-    fs.unlinkSync(fullPath);
-  } else {
-    const trashDir = path.join(v.contentPath, ".trash");
-    fs.mkdirSync(trashDir, { recursive: true });
-    const trashPath = path.join(trashDir, path.basename(resolved));
-    fs.renameSync(fullPath, trashPath);
+  let result: { path: string; deleted: boolean; permanent: boolean };
+  try {
+    result = n.delete(opts.file, opts.permanent);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
   output(opts, {
-    json: () => ({
-      path: resolved,
-      deleted: true,
-      permanent: !!opts.permanent,
-    }),
+    json: () => result,
     human: () =>
       success(
-        `Deleted ${resolved}${opts.permanent ? " (permanent)" : " (moved to .trash)"}`,
+        `Deleted ${result.path}${result.permanent ? " (permanent)" : " (moved to .trash)"}`,
       ),
   });
 }

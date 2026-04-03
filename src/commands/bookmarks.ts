@@ -1,5 +1,5 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import type { Bookmark } from "../core/bookmarks.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_USER_ERROR } from "../utils/exit-codes.js";
 import {
   dim,
@@ -8,44 +8,6 @@ import {
   output,
   success,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
-
-interface Bookmark {
-  type: string;
-  title?: string;
-  path?: string;
-  query?: string;
-  url?: string;
-  subpath?: string;
-  items?: Bookmark[];
-}
-
-function readBookmarks(obsidianPath: string): Bookmark[] {
-  const configPath = path.join(obsidianPath, "bookmarks.json");
-  try {
-    const content = fs.readFileSync(configPath, "utf-8");
-    return JSON.parse(content) as Bookmark[];
-  } catch {
-    return [];
-  }
-}
-
-function writeBookmarks(obsidianPath: string, bookmarks: Bookmark[]): void {
-  const configPath = path.join(obsidianPath, "bookmarks.json");
-  fs.writeFileSync(configPath, JSON.stringify(bookmarks, null, 2));
-}
-
-function flattenBookmarks(items: Bookmark[]): Bookmark[] {
-  const result: Bookmark[] = [];
-  for (const item of items) {
-    if (item.type === "group" && item.items) {
-      result.push(...flattenBookmarks(item.items));
-    } else {
-      result.push(item);
-    }
-  }
-  return result;
-}
 
 export async function bookmarks(
   opts: OutputOptions & {
@@ -54,9 +16,8 @@ export async function bookmarks(
     verbose?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
-  const items = readBookmarks(v.obsidianPath);
-  const flat = flattenBookmarks(items);
+  const n = new Napkin({ vault: opts.vault });
+  const flat = n.bookmarks();
 
   output(opts, {
     json: () => (opts.total ? { total: flat.length } : { bookmarks: flat }),
@@ -84,7 +45,7 @@ export async function bookmark(
     title?: string;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
 
   let entry: Bookmark;
   if (opts.file) {
@@ -105,13 +66,13 @@ export async function bookmark(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const items = readBookmarks(v.obsidianPath);
-  items.push(entry);
-  writeBookmarks(v.obsidianPath, items);
+  const result = n.bookmarkAdd(entry);
 
   output(opts, {
-    json: () => ({ added: entry }),
+    json: () => result,
     human: () =>
-      success(`Bookmarked ${entry.path || entry.query || entry.url}`),
+      success(
+        `Bookmarked ${result.added.path || result.added.query || result.added.url}`,
+      ),
   });
 }

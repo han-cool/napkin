@@ -1,8 +1,7 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { resolveTaskLocation, type TaskWithFile } from "../core/tasks.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles, resolveFile, suggestFile } from "../utils/files.js";
-import { extractTasks, type Task } from "../utils/markdown.js";
+import { suggestFile } from "../utils/files.js";
 import {
   bold,
   dim,
@@ -11,42 +10,6 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault, type VaultInfo } from "../utils/vault.js";
-import { getDailyPath } from "./daily.js";
-
-interface TaskWithFile extends Task {
-  file: string;
-}
-
-function collectTasks(
-  vault: VaultInfo,
-  opts: { file?: string; daily?: boolean },
-): TaskWithFile[] {
-  let files: string[];
-
-  if (opts.daily) {
-    const dp = getDailyPath(vault.configPath);
-    files = fs.existsSync(path.join(vault.contentPath, dp)) ? [dp] : [];
-  } else if (opts.file) {
-    const r = resolveFile(vault.contentPath, opts.file);
-    files = r ? [r] : [];
-  } else {
-    files = listFiles(vault.contentPath, { ext: "md" });
-  }
-
-  const results: TaskWithFile[] = [];
-  for (const file of files) {
-    const content = fs.readFileSync(
-      path.join(vault.contentPath, file),
-      "utf-8",
-    );
-    const tasks = extractTasks(content);
-    for (const t of tasks) {
-      results.push({ ...t, file });
-    }
-  }
-  return results;
-}
 
 export async function tasks(
   opts: OutputOptions & {
@@ -60,15 +23,14 @@ export async function tasks(
     status?: string;
   },
 ) {
-  const v = findVault(opts.vault);
-  let result = collectTasks(v, {
+  const n = new Napkin({ vault: opts.vault });
+  const result = n.tasks({
     file: opts.file,
     daily: opts.daily,
+    done: opts.done,
+    todo: opts.todo,
+    status: opts.status,
   });
-
-  if (opts.done) result = result.filter((t) => t.done);
-  if (opts.todo) result = result.filter((t) => !t.done);
-  if (opts.status) result = result.filter((t) => t.status === opts.status);
 
   output(opts, {
     json: () => (opts.total ? { total: result.length } : { tasks: result }),
@@ -109,63 +71,35 @@ export async function task(
     daily?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
 
   let filePath: string;
   let lineNum: number;
-
-  if (opts.ref) {
-    const parts = opts.ref.split(":");
-    if (parts.length !== 2) {
-      error("Invalid ref format. Use --ref <path:line>");
-      process.exit(EXIT_USER_ERROR);
-    }
-    const resolved = resolveFile(v.contentPath, parts[0]);
-    if (!resolved) {
-      fileNotFound(parts[0], suggestFile(v.contentPath, parts[0]));
+  try {
+    ({ filePath, lineNum } = resolveTaskLocation(n.vault, opts));
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.includes("File not found")) {
+      const ref = opts.ref?.split(":")[0] || opts.file || "";
+      fileNotFound(ref, suggestFile(n.vault.contentPath, ref));
       process.exit(EXIT_NOT_FOUND);
     }
-    filePath = resolved;
-    lineNum = Number.parseInt(parts[1], 10);
-  } else if (opts.daily) {
-    filePath = getDailyPath(v.configPath);
-    lineNum = Number.parseInt(opts.line || "0", 10);
-  } else {
-    if (!opts.file || !opts.line) {
-      error("Specify --file and --line, or --ref <path:line>");
-      process.exit(EXIT_USER_ERROR);
-    }
-    const resolved = resolveFile(v.contentPath, opts.file);
-    if (!resolved) {
-      fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-      process.exit(EXIT_NOT_FOUND);
-    }
-    filePath = resolved;
-    lineNum = Number.parseInt(opts.line, 10);
-  }
-
-  const fullPath = path.join(v.contentPath, filePath);
-  if (!fs.existsSync(fullPath)) {
-    fileNotFound(filePath, suggestFile(v.contentPath, filePath));
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  const content = fs.readFileSync(fullPath, "utf-8");
-  const lines = content.split("\n");
-  const targetLine = lines[lineNum - 1];
-
-  if (!targetLine) {
-    error(`Line ${lineNum} not found in ${filePath}`);
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  const taskMatch = targetLine.match(/^([\s]*[-*]\s+\[)(.)(].*)$/);
-  if (!taskMatch) {
-    error(`Line ${lineNum} is not a task`);
+    error(msg);
     process.exit(EXIT_USER_ERROR);
   }
 
-  const currentStatus = taskMatch[2];
+  let taskInfo: { currentStatus: string; text: string };
+  try {
+    taskInfo = n.taskShow(filePath, lineNum);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    error(msg);
+    process.exit(
+      msg.includes("is not a task") ? EXIT_USER_ERROR : EXIT_NOT_FOUND,
+    );
+  }
+
+  const { currentStatus } = taskInfo;
   const isMutating = opts.toggle || opts.done || opts.todo || opts.status;
 
   if (isMutating) {
@@ -176,17 +110,11 @@ export async function task(
     else if (opts.toggle) newStatus = currentStatus === " " ? "x" : " ";
     else newStatus = currentStatus;
 
-    lines[lineNum - 1] = `${taskMatch[1]}${newStatus}${taskMatch[3]}`;
-    fs.writeFileSync(fullPath, lines.join("\n"));
+    const result = n.taskUpdate(filePath, lineNum, newStatus);
 
     output(opts, {
-      json: () => ({
-        file: filePath,
-        line: lineNum,
-        status: newStatus,
-        text: taskMatch[3].slice(2),
-      }),
-      human: () => console.log(`[${newStatus}] ${taskMatch[3].slice(2)}`),
+      json: () => result,
+      human: () => console.log(`[${result.status}] ${result.text}`),
     });
   } else {
     output(opts, {
@@ -194,14 +122,14 @@ export async function task(
         file: filePath,
         line: lineNum,
         status: currentStatus,
-        text: taskMatch[3].slice(2),
+        text: taskInfo.text,
         done: currentStatus === "x" || currentStatus === "X",
       }),
       human: () => {
         console.log(`${dim("file")}    ${filePath}`);
         console.log(`${dim("line")}    ${lineNum}`);
         console.log(`${dim("status")}  [${currentStatus}]`);
-        console.log(`${dim("text")}    ${taskMatch[3].slice(2)}`);
+        console.log(`${dim("text")}    ${taskInfo.text}`);
       },
     });
   }

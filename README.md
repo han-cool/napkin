@@ -4,22 +4,16 @@
 
 Every great idea started on a napkin.
 
-## Install
-
 ```bash
 npm install -g napkin-ai
 ```
 
-As a pi package (includes extensions + skills):
-
-```bash
-pi install npm:napkin-ai
-```
+---
 
 ## Quick Start
 
 ```bash
-# Initialize a vault with a template
+# Initialize a vault
 napkin init --template coding
 
 # See what's in it
@@ -30,23 +24,57 @@ napkin search "authentication"
 
 # Read a file
 napkin read "Architecture"
+
+# Write
+napkin create "Decision" --template Decision
+napkin append "Decision" "We chose Postgres."
+napkin daily append "- [ ] Review PR"
 ```
 
-## Vault Structure
+---
 
-`.napkin/` is the vault root — all content lives inside it:
+## SDK
 
+napkin is also a library. No CLI, no stdout — just data:
+
+```typescript
+import { Napkin } from "napkin-ai";
+
+const n = new Napkin({ vault: "/path/to/project" });
+
+// Progressive disclosure
+const overview = n.overview();
+const results = n.search("authentication");
+const file = n.read("Architecture");
+
+// Write
+n.create({ name: "New Note", content: "# Hello" });
+n.append("New Note", "\nMore content");
+
+// Daily notes
+n.dailyEnsure();
+n.dailyAppend("- Met with team");
+
+// Everything else
+n.tags();
+n.tasks({ todo: true });
+n.linksBack("Architecture");
+n.outline("Architecture");
+n.properties();
+n.bookmarks();
+n.config();
 ```
-my-project/
-  .napkin/                  # The vault
-    NAPKIN.md               # Context note (Level 0)
-    config.json             # Unified config (syncs to .obsidian/)
-    decisions/              # Template-defined directories
-    architecture/
-    Templates/              # Note templates
-    .obsidian/              # Obsidian compatibility (auto-generated)
-  src/                      # Your project (not in vault)
+
+Static methods for vault initialization:
+
+```typescript
+Napkin.init({ path: "/path/to/project", template: "coding" });
+Napkin.initTemplates(); // list available templates
 ```
+
+All SDK methods return typed data and throw errors on failure. No `console.log`, no `process.exit`.
+
+---
 
 ## Progressive Disclosure
 
@@ -73,6 +101,24 @@ Zero preprocessing. No embeddings, no graphs, no summaries. Just BM25 search on 
 
 See [`bench/README.md`](bench/README.md) for details and usage.
 
+---
+
+## Vault Structure
+
+`.napkin/` is the vault root — all content lives inside it:
+
+```
+my-project/
+  .napkin/                  # The vault
+    NAPKIN.md               # Context note (Level 0)
+    config.json             # Unified config (syncs to .obsidian/)
+    decisions/              # Template-defined directories
+    architecture/
+    Templates/              # Note templates
+    .obsidian/              # Obsidian compatibility (auto-generated)
+  src/                      # Your project (not in vault)
+```
+
 ## Templates
 
 Scaffold a vault with a domain-specific structure:
@@ -87,13 +133,23 @@ napkin init --template research  # papers/, concepts/, questions/, experiments/
 
 Each template includes directory structure, `_about.md` files, Obsidian note templates, and a `NAPKIN.md` skeleton.
 
+---
+
+## For Agents
+
+Every command supports `--json` for structured output and `-q` for raw output:
+
 ```bash
-napkin init --list               # List available templates
+napkin overview --json          # Structured vault map
+napkin search "auth" --json     # Ranked results as JSON
+napkin read "Note" -q           # Raw markdown, nothing else
 ```
 
-## Commands
+---
 
-### Global flags
+## CLI Reference
+
+### Global Flags
 
 | Flag | Description |
 |---|---|
@@ -119,7 +175,7 @@ napkin search "TODO" --no-snippets    # Files only
 echo "piped content" | napkin append "Note"  # Stdin support
 ```
 
-### Files & folders — `napkin file`
+### Files & Folders — `napkin file`
 
 ```bash
 napkin file info <name>               # File info (path, size, dates)
@@ -128,11 +184,11 @@ napkin file list --ext md             # Filter by extension
 napkin file list --folder Projects    # Filter by folder
 napkin file folder <path>             # Folder info
 napkin file folders                   # List all folders
-napkin file outline "note"             # Heading tree
+napkin file outline "note"            # Heading tree
 napkin file wordcount "note"          # Word + character count
 ```
 
-### Daily notes — `napkin daily`
+### Daily Notes — `napkin daily`
 
 ```bash
 napkin daily today                    # Create today's daily note
@@ -227,37 +283,56 @@ napkin config get --key search.limit  # Get a value
 napkin config set --key search.limit --value 50
 ```
 
-See [docs/configuration.md](docs/configuration.md) for all config options.
-
 ### Graph — `napkin graph`
 
 ```bash
 napkin graph                          # Interactive vault graph
 ```
 
-Force-directed graph of vault notes and wikilinks. Click nodes to read content in a sidebar. On macOS, opens in a native window (Glimpse). On other platforms, opens in the browser. Configure with `graph.renderer` in config.
+Force-directed graph of vault notes and wikilinks. Click nodes to read content in a sidebar.
+
+---
 
 ## File Resolution
 
 Files can be referenced two ways:
-- **By name** (wikilink-style): `--file "Active Projects"` — searches all `.md` files by basename
-- **By path**: `--file "Projects/Active Projects.md"` — exact path from vault root
+- **By name** (wikilink-style): `"Active Projects"` — searches all `.md` files by basename
+- **By path**: `"Projects/Active Projects.md"` — exact path from vault root
+
+---
+
+## Architecture
+
+```
+src/
+  index.ts       # SDK exports: Napkin class + all types
+  sdk.ts         # Napkin class wrapping core modules
+  main.ts        # CLI entry (Commander) — thin wrapper
+  core/          # Pure logic, returns data, no stdout
+  commands/      # CLI wrappers: parse args → sdk → format + print
+  utils/         # Shared utilities (files, frontmatter, markdown, etc.)
+```
+
+Core modules never call `console.log`, `process.exit`, or import output utilities. They return typed data and throw errors. The CLI commands are thin wrappers that instantiate the SDK, call methods, and format the output.
+
+---
 
 ## Pi Extensions
 
-napkin ships as a pi package with two extensions:
+napkin ships as a [pi](https://github.com/mariozechner/pi-coding-agent) package with two extensions:
 
 ### napkin-context
-Injects the vault overview (Level 0 + Level 1) into the agent's system prompt on session start. The agent gets NAPKIN.md and the vault map with keywords for free.
+Injects the vault overview (Level 0 + Level 1) into the agent's system prompt on session start.
 
 ### napkin-distill
-Forks the current session and spawns a sub-agent to distill knowledge into the vault. The sub-agent inherits the full conversation, uses napkin tools to read templates and create structured notes. Runs in the background.
+Forks the current session and spawns a sub-agent to distill knowledge into the vault. Runs in the background.
 
 ```bash
-napkin config set --key distill.enabled --value true    # Enable auto-distill
+pi install npm:napkin-ai
+napkin config set --key distill.enabled --value true
 ```
 
-Or trigger manually in pi: `/distill`
+---
 
 ## Development
 

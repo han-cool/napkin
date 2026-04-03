@@ -1,8 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { buildDatabase, parseBaseFile, queryBase } from "../utils/bases.js";
+import type { BaseQueryResult } from "../core/bases.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles } from "../utils/files.js";
 import {
   bold,
   dim,
@@ -11,11 +9,10 @@ import {
   output,
   success,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function bases(opts: OutputOptions & { vault?: string }) {
-  const v = findVault(opts.vault);
-  const files = listFiles(v.contentPath).filter((f) => f.endsWith(".base"));
+  const n = new Napkin({ vault: opts.vault });
+  const files = n.bases();
 
   output(opts, {
     json: () => ({ bases: files }),
@@ -32,19 +29,14 @@ export async function bases(opts: OutputOptions & { vault?: string }) {
 export async function baseViews(
   opts: OutputOptions & { vault?: string; file?: string; path?: string },
 ) {
-  const v = findVault(opts.vault);
-  const baseFile = resolveBaseFile(v.contentPath, opts);
-  if (!baseFile) {
-    error("No base file specified. Use --file or --path");
+  const n = new Napkin({ vault: opts.vault });
+  let views: { name: string; type: string }[];
+  try {
+    views = n.baseViews(opts);
+  } catch (e: unknown) {
+    error((e as Error).message);
     process.exit(EXIT_USER_ERROR);
   }
-
-  const content = fs.readFileSync(path.join(v.contentPath, baseFile), "utf-8");
-  const config = parseBaseFile(content);
-  const views = (config.views || []).map((view) => ({
-    name: view.name || "(unnamed)",
-    type: view.type,
-  }));
 
   output(opts, {
     json: () => ({ views }),
@@ -65,118 +57,93 @@ export async function baseQuery(
     format?: string;
   },
 ) {
-  const v = findVault(opts.vault);
-  const baseFile = resolveBaseFile(v.contentPath, opts);
-  if (!baseFile) {
-    error("No base file specified. Use --file or --path");
+  const n = new Napkin({ vault: opts.vault });
+  let result: BaseQueryResult;
+  try {
+    result = await n.baseQuery(opts, opts.view);
+  } catch (e: unknown) {
+    error((e as Error).message);
     process.exit(EXIT_USER_ERROR);
   }
+  const fmt = opts.format || "json";
 
-  const content = fs.readFileSync(path.join(v.contentPath, baseFile), "utf-8");
-  const config = parseBaseFile(content);
+  const displayCols = result.columns.map((c) => result.displayNames?.[c] || c);
 
-  const db = await buildDatabase(v.contentPath);
-  try {
-    // Derive thisFile from the base file path
-    const thisFile = baseFile
-      ? {
-          name: path.basename(baseFile),
-          path: baseFile,
-          folder: path.dirname(baseFile),
+  output(opts, {
+    json: () => {
+      if (fmt === "paths") {
+        const pathIdx = result.columns.indexOf("path");
+        return { paths: result.rows.map((r) => r[pathIdx]) };
+      }
+      // Convert to array of objects
+      const rows = result.rows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        for (let i = 0; i < result.columns.length; i++) {
+          obj[result.columns[i]] = row[i];
         }
-      : undefined;
+        return obj;
+      });
+      const out: Record<string, unknown> = { columns: result.columns, rows };
+      if (result.displayNames && Object.keys(result.displayNames).length > 0) {
+        out.displayNames = result.displayNames;
+      }
+      if (result.groups) {
+        out.groups = result.groups.map((g) => ({
+          key: g.key,
+          rows: g.rows.map((row) => {
+            const obj: Record<string, unknown> = {};
+            for (let i = 0; i < result.columns.length; i++) {
+              obj[result.columns[i]] = row[i];
+            }
+            return obj;
+          }),
+        }));
+      }
+      if (result.summaries) out.summaries = result.summaries;
+      return out;
+    },
+    human: () => {
+      if (result.rows.length === 0) {
+        console.log("No results");
+        return;
+      }
 
-    const result = await queryBase(db, config, opts.view, thisFile);
-    const fmt = opts.format || "json";
+      if (fmt === "paths") {
+        const pathIdx = result.columns.indexOf("path");
+        for (const row of result.rows) console.log(row[pathIdx]);
+        return;
+      }
 
-    // Apply displayNames to columns for output
-    const displayCols = result.columns.map(
-      (c) => result.displayNames?.[c] || c,
-    );
-
-    output(opts, {
-      json: () => {
-        if (fmt === "paths") {
-          const pathIdx = result.columns.indexOf("path");
-          return { paths: result.rows.map((r) => r[pathIdx]) };
-        }
-        // Convert to array of objects
-        const rows = result.rows.map((row) => {
-          const obj: Record<string, unknown> = {};
-          for (let i = 0; i < result.columns.length; i++) {
-            obj[result.columns[i]] = row[i];
-          }
-          return obj;
-        });
-        const out: Record<string, unknown> = { columns: result.columns, rows };
-        if (
-          result.displayNames &&
-          Object.keys(result.displayNames).length > 0
-        ) {
-          out.displayNames = result.displayNames;
-        }
-        if (result.groups) {
-          out.groups = result.groups.map((g) => ({
-            key: g.key,
-            rows: g.rows.map((row) => {
-              const obj: Record<string, unknown> = {};
-              for (let i = 0; i < result.columns.length; i++) {
-                obj[result.columns[i]] = row[i];
-              }
-              return obj;
-            }),
-          }));
-        }
-        if (result.summaries) out.summaries = result.summaries;
-        return out;
-      },
-      human: () => {
-        if (result.rows.length === 0) {
-          console.log("No results");
-          return;
-        }
-
-        if (fmt === "paths") {
-          const pathIdx = result.columns.indexOf("path");
-          for (const row of result.rows) console.log(row[pathIdx]);
-          return;
-        }
-
-        if (fmt === "csv" || fmt === "tsv") {
-          const sep = fmt === "csv" ? "," : "\t";
-          console.log(displayCols.join(sep));
-          for (const row of result.rows) {
-            console.log(
-              row.map((v) => (v === null ? "" : String(v))).join(sep),
-            );
-          }
-          return;
-        }
-
-        if (fmt === "md") {
-          console.log(`| ${displayCols.join(" | ")} |`);
-          console.log(`| ${displayCols.map(() => "---").join(" | ")} |`);
-          for (const row of result.rows) {
-            console.log(
-              `| ${row.map((v) => (v === null ? "" : String(v))).join(" | ")} |`,
-            );
-          }
-          return;
-        }
-
-        // Default: table-like
+      if (fmt === "csv" || fmt === "tsv") {
+        const sep = fmt === "csv" ? "," : "\t";
+        console.log(displayCols.join(sep));
         for (const row of result.rows) {
-          const obj: Record<string, unknown> = {};
-          for (let i = 0; i < result.columns.length; i++) {
-            if (row[i] !== null) obj[result.columns[i]] = row[i];
-          }
-          console.log(JSON.stringify(obj));
+          console.log(row.map((v) => (v === null ? "" : String(v))).join(sep));
         }
-      },
-    });
-  } finally {
-    db.close();
-  }
+        return;
+      }
+
+      if (fmt === "md") {
+        console.log(`| ${displayCols.join(" | ")} |`);
+        console.log(`| ${displayCols.map(() => "---").join(" | ")} |`);
+        for (const row of result.rows) {
+          console.log(
+            `| ${row.map((v) => (v === null ? "" : String(v))).join(" | ")} |`,
+          );
+        }
+        return;
+      }
+
+      // Default: table-like
+      for (const row of result.rows) {
+        const obj: Record<string, unknown> = {};
+        for (let i = 0; i < result.columns.length; i++) {
+          if (row[i] !== null) obj[result.columns[i]] = row[i];
+        }
+        console.log(JSON.stringify(obj));
+      }
+    },
+  });
 }
 
 export async function baseCreate(
@@ -188,52 +155,20 @@ export async function baseCreate(
     content?: string;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name) {
     error("No name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  // Create a new note (item in the base)
-  const targetPath = opts.path
-    ? opts.path.endsWith(".md")
-      ? opts.path
-      : `${opts.path}/${opts.name}.md`
-    : `${opts.name}.md`;
-
-  const fullPath = path.join(v.contentPath, targetPath);
-  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
-  fs.writeFileSync(fullPath, opts.content || "");
+  const result = n.baseCreate({
+    name: opts.name,
+    path: opts.path,
+    content: opts.content,
+  });
 
   output(opts, {
-    json: () => ({ path: targetPath, created: true }),
-    human: () => success(`Created ${targetPath}`),
+    json: () => result,
+    human: () => success(`Created ${result.path}`),
   });
-}
-
-function resolveBaseFile(
-  vaultPath: string,
-  opts: { file?: string; path?: string },
-): string | null {
-  if (opts.path) {
-    const p = opts.path.endsWith(".base") ? opts.path : `${opts.path}.base`;
-    if (fs.existsSync(path.join(vaultPath, p))) return p;
-    return null;
-  }
-  if (opts.file) {
-    // Search for .base file by name
-    const allFiles = listFiles(vaultPath).filter((f) => f.endsWith(".base"));
-    const target = opts.file.toLowerCase();
-    for (const f of allFiles) {
-      const basename = path.basename(f, ".base").toLowerCase();
-      if (basename === target) return f;
-    }
-    // Try with .base extension
-    const withExt = opts.file.endsWith(".base")
-      ? opts.file
-      : `${opts.file}.base`;
-    if (fs.existsSync(path.join(vaultPath, withExt))) return withExt;
-    return null;
-  }
-  return null;
 }

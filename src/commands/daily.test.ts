@@ -1,14 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getDailyPath } from "../core/daily.js";
 import { createTempVault } from "../utils/test-helpers.js";
-import {
-  dailyAppend,
-  dailyPath,
-  dailyPrepend,
-  dailyRead,
-  getDailyPath,
-} from "./daily.js";
+import { dailyAppend, dailyPath, dailyPrepend, dailyRead } from "./daily.js";
 
 let v: { path: string; vaultPath: string; cleanup: () => void };
 

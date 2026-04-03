@@ -1,14 +1,8 @@
 import { exec } from "node:child_process";
-import * as fs from "node:fs";
-import * as path from "node:path";
+import type { FileInfo, FolderInfo } from "../core/files.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND } from "../utils/exit-codes.js";
-import {
-  getFileInfo,
-  listFiles,
-  listFolders,
-  resolveFile,
-  suggestFile,
-} from "../utils/files.js";
+import { resolveFile, suggestFile } from "../utils/files.js";
 import {
   bold,
   dim,
@@ -17,23 +11,28 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function file(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!fileRef) {
     error("No file specified. Usage: obsidian-cli file <name>");
     process.exit(EXIT_NOT_FOUND);
   }
-  const resolved = resolveFile(v.contentPath, fileRef);
-  if (!resolved) {
-    fileNotFound(fileRef, suggestFile(v.contentPath, fileRef));
-    process.exit(EXIT_NOT_FOUND);
+
+  let info: FileInfo;
+  try {
+    info = n.fileInfo(fileRef);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(fileRef, suggestFile(n.vault.contentPath, fileRef));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
-  const info = getFileInfo(v.contentPath, resolved);
 
   output(opts, {
     json: () => info,
@@ -56,8 +55,8 @@ export async function files(
     total?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
-  const result = listFiles(v.contentPath, {
+  const n = new Napkin({ vault: opts.vault });
+  const result = n.fileList({
     folder: opts.folder,
     ext: opts.ext,
   });
@@ -77,8 +76,8 @@ export async function files(
 export async function folders(
   opts: OutputOptions & { vault?: string; folder?: string; total?: boolean },
 ) {
-  const v = findVault(opts.vault);
-  const result = listFolders(v.contentPath, opts.folder);
+  const n = new Napkin({ vault: opts.vault });
+  const result = n.folders(opts.folder);
 
   output(opts, {
     json: () => (opts.total ? { total: result.length } : { folders: result }),
@@ -96,34 +95,31 @@ export async function folder(
   folderPath: string | undefined,
   opts: OutputOptions & { vault?: string; info?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!folderPath) {
     error("No folder specified. Usage: obsidian-cli folder <path>");
     process.exit(EXIT_NOT_FOUND);
   }
 
-  const fullPath = path.join(v.contentPath, folderPath);
-  if (!fs.existsSync(fullPath) || !fs.statSync(fullPath).isDirectory()) {
-    error(`Folder not found: ${folderPath}`);
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  const fileCount = listFiles(v.contentPath, { folder: folderPath }).length;
-  const folderCount = listFolders(v.contentPath, folderPath).length;
-
-  let size = 0;
-  const allFiles = listFiles(v.contentPath, { folder: folderPath });
-  for (const f of allFiles) {
-    size += fs.statSync(path.join(v.contentPath, f)).size;
+  let fi: FolderInfo;
+  try {
+    fi = n.folderInfo(folderPath);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("Folder not found:")) {
+      error(msg);
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
   if (opts.info) {
     const val =
       opts.info === "files"
-        ? fileCount
+        ? fi.files
         : opts.info === "folders"
-          ? folderCount
-          : size;
+          ? fi.folders
+          : fi.size;
     output(opts, {
       json: () => ({ [opts.info as string]: val }),
       human: () => console.log(val),
@@ -132,17 +128,12 @@ export async function folder(
   }
 
   output(opts, {
-    json: () => ({
-      path: folderPath,
-      files: fileCount,
-      folders: folderCount,
-      size,
-    }),
+    json: () => fi,
     human: () => {
-      console.log(`${dim("path")}      ${folderPath}`);
-      console.log(`${dim("files")}     ${fileCount}`);
-      console.log(`${dim("folders")}   ${folderCount}`);
-      console.log(`${dim("size")}      ${size}`);
+      console.log(`${dim("path")}      ${fi.path}`);
+      console.log(`${dim("files")}     ${fi.files}`);
+      console.log(`${dim("folders")}   ${fi.folders}`);
+      console.log(`${dim("size")}      ${fi.size}`);
     },
   });
 }
@@ -151,14 +142,14 @@ export async function open(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string; newtab?: boolean },
 ) {
-  const v = findVault(opts.vault);
-  const vaultName = encodeURIComponent(v.name);
+  const n = new Napkin({ vault: opts.vault });
+  const vaultName = encodeURIComponent(n.vault.name);
 
   let uri: string;
   if (fileRef) {
-    const resolved = resolveFile(v.contentPath, fileRef);
+    const resolved = resolveFile(n.vault.contentPath, fileRef);
     if (!resolved) {
-      fileNotFound(fileRef, suggestFile(v.contentPath, fileRef));
+      fileNotFound(fileRef, suggestFile(n.vault.contentPath, fileRef));
       process.exit(EXIT_NOT_FOUND);
     }
     const encodedFile = encodeURIComponent(resolved.replace(/\.md$/, ""));

@@ -1,4 +1,4 @@
-import { loadConfig, updateConfig } from "../utils/config.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_USER_ERROR } from "../utils/exit-codes.js";
 import {
   bold,
@@ -7,11 +7,10 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function configShow(opts: OutputOptions & { vault?: string }) {
-  const v = findVault(opts.vault);
-  const config = loadConfig(v.configPath);
+  const n = new Napkin({ vault: opts.vault });
+  const config = n.config();
 
   output(opts, {
     json: () => config,
@@ -24,32 +23,14 @@ export async function configShow(opts: OutputOptions & { vault?: string }) {
 export async function configSet(
   opts: OutputOptions & { vault?: string; key?: string; value?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
 
   if (!opts.key || opts.value === undefined) {
     error("Usage: napkin config set --key <path> --value <value>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  // Parse dotted key path into nested object
-  const parts = opts.key.split(".");
-  const obj: Record<string, unknown> = {};
-  let current = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    current[parts[i]] = {};
-    current = current[parts[i]] as Record<string, unknown>;
-  }
-
-  // Parse value (try JSON, fall back to string)
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(opts.value);
-  } catch {
-    parsed = opts.value;
-  }
-  current[parts[parts.length - 1]] = parsed;
-
-  const updated = updateConfig(v.configPath, obj);
+  const { config: updated, parsed } = n.configSet(opts.key, opts.value);
 
   output(opts, {
     json: () => updated,
@@ -64,24 +45,14 @@ export async function configSet(
 export async function configGet(
   opts: OutputOptions & { vault?: string; key?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
 
   if (!opts.key) {
     error("Usage: napkin config get --key <path>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const config = loadConfig(v.configPath);
-  const parts = opts.key.split(".");
-  let value: unknown = config;
-  for (const part of parts) {
-    if (value && typeof value === "object" && part in value) {
-      value = (value as Record<string, unknown>)[part];
-    } else {
-      value = undefined;
-      break;
-    }
-  }
+  const value = n.configGet(opts.key);
 
   output(opts, {
     json: () => ({ key: opts.key, value }),

@@ -1,15 +1,12 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { resolveFile, suggestFile } from "../utils/files.js";
-import { extractHeadings } from "../utils/markdown.js";
+import { suggestFile } from "../utils/files.js";
 import {
   error,
   fileNotFound,
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function outline(
   opts: OutputOptions & {
@@ -19,20 +16,23 @@ export async function outline(
     total?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let headings: { level: number; text: string; line: number }[];
+  try {
+    headings = n.outline(opts.file);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
-
-  const content = fs.readFileSync(path.join(v.contentPath, resolved), "utf-8");
-  const headings = extractHeadings(content);
 
   output(opts, {
     json: () => (opts.total ? { total: headings.length } : { headings }),

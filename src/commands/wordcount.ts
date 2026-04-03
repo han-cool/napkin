@@ -1,8 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { resolveFile, suggestFile } from "../utils/files.js";
-import { parseFrontmatter } from "../utils/frontmatter.js";
+import { suggestFile } from "../utils/files.js";
 import {
   dim,
   error,
@@ -10,7 +8,6 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
 
 export async function wordcount(
   opts: OutputOptions & {
@@ -20,23 +17,25 @@ export async function wordcount(
     characters?: boolean;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { words: number; characters: number };
+  try {
+    result = n.wordcount(opts.file);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const content = fs.readFileSync(path.join(v.contentPath, resolved), "utf-8");
-  const { body } = parseFrontmatter(content);
-  const text = body.trim();
-  const words = text ? text.split(/\s+/).length : 0;
-  const characters = text.length;
+  const { words, characters } = result;
 
   output(opts, {
     json: () => {

@@ -1,8 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { loadConfig } from "../utils/config.js";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles, resolveFile, suggestFile } from "../utils/files.js";
+import { suggestFile } from "../utils/files.js";
 import {
   error,
   fileNotFound,
@@ -10,21 +8,12 @@ import {
   output,
   success,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
-
-function getTemplateFolder(vaultPath: string): string {
-  const config = loadConfig(vaultPath);
-  return config.templates.folder;
-}
 
 export async function templates(
   opts: OutputOptions & { vault?: string; total?: boolean },
 ) {
-  const v = findVault(opts.vault);
-  const folder = getTemplateFolder(v.configPath);
-  const files = listFiles(v.contentPath, { folder, ext: "md" }).map((f) =>
-    path.basename(f, ".md"),
-  );
+  const n = new Napkin({ vault: opts.vault });
+  const files = n.templates();
 
   output(opts, {
     json: () => (opts.total ? { total: files.length } : { templates: files }),
@@ -43,39 +32,26 @@ export async function templateRead(
     title?: string;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name) {
     error("No template name specified. Use --name <template>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const folder = getTemplateFolder(v.configPath);
-  const resolved =
-    resolveFile(v.contentPath, `${folder}/${opts.name}`) ||
-    resolveFile(v.contentPath, opts.name);
-  if (!resolved) {
-    const templateFiles = listFiles(v.contentPath, { folder, ext: "md" }).map(
-      (f) => path.basename(f, ".md"),
-    );
-    fileNotFound(opts.name, templateFiles.slice(0, 3));
+  let result: { template: string; content: string };
+  try {
+    result = n.templateRead(opts.name, {
+      resolve: opts.resolve,
+      title: opts.title,
+    });
+  } catch (e: unknown) {
+    error((e as Error).message);
     process.exit(EXIT_NOT_FOUND);
   }
 
-  let content = fs.readFileSync(path.join(v.contentPath, resolved), "utf-8");
-
-  if (opts.resolve) {
-    const now = new Date();
-    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    content = content
-      .replace(/\{\{date\}\}/g, dateStr)
-      .replace(/\{\{time\}\}/g, timeStr)
-      .replace(/\{\{title\}\}/g, opts.title || "Untitled");
-  }
-
   output(opts, {
-    json: () => ({ template: opts.name, content }),
-    human: () => console.log(content),
+    json: () => result,
+    human: () => console.log(result.content),
   });
 }
 
@@ -86,56 +62,33 @@ export async function templateInsert(
     file?: string;
   },
 ) {
-  const v = findVault(opts.vault);
-  if (!opts.name) {
+  const n = new Napkin({ vault: opts.vault });
+  const templateName = opts.name;
+  const targetFile = opts.file;
+  if (!templateName) {
     error("No template name specified. Use --name <template>");
     process.exit(EXIT_USER_ERROR);
   }
-  if (!opts.file) {
+  if (!targetFile) {
     error("No target file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const folder = getTemplateFolder(v.configPath);
-  const templateResolved =
-    resolveFile(v.contentPath, `${folder}/${opts.name}`) ||
-    resolveFile(v.contentPath, opts.name);
-  if (!templateResolved) {
-    const templateFiles = listFiles(v.contentPath, { folder, ext: "md" }).map(
-      (f) => path.basename(f, ".md"),
-    );
-    fileNotFound(opts.name, templateFiles.slice(0, 3));
+  let result: { file: string; template: string; inserted: boolean };
+  try {
+    result = n.templateInsert(templateName, targetFile);
+  } catch (e: unknown) {
+    if ((e as Error).message.includes("File not found")) {
+      fileNotFound(targetFile, suggestFile(n.vault.contentPath, targetFile));
+    } else {
+      error((e as Error).message);
+    }
     process.exit(EXIT_NOT_FOUND);
   }
-
-  const targetResolved = resolveFile(v.contentPath, opts.file);
-  if (!targetResolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
-  }
-
-  let templateContent = fs.readFileSync(
-    path.join(v.contentPath, templateResolved),
-    "utf-8",
-  );
-
-  // Resolve variables
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const title = path.basename(targetResolved, ".md");
-  templateContent = templateContent
-    .replace(/\{\{date\}\}/g, dateStr)
-    .replace(/\{\{time\}\}/g, timeStr)
-    .replace(/\{\{title\}\}/g, title);
-
-  const targetPath = path.join(v.contentPath, targetResolved);
-  const existing = fs.readFileSync(targetPath, "utf-8");
-  fs.writeFileSync(targetPath, existing + templateContent);
 
   output(opts, {
-    json: () => ({ file: targetResolved, template: opts.name, inserted: true }),
+    json: () => result,
     human: () =>
-      success(`Inserted template "${opts.name}" into ${targetResolved}`),
+      success(`Inserted template "${result.template}" into ${result.file}`),
   });
 }

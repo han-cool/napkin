@@ -1,12 +1,6 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { Napkin } from "../sdk.js";
 import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles, resolveFile, suggestFile } from "../utils/files.js";
-import {
-  parseFrontmatter,
-  removeProperty as removeProp,
-  setProperty as setProp,
-} from "../utils/frontmatter.js";
+import { suggestFile } from "../utils/files.js";
 import {
   error,
   fileNotFound,
@@ -14,31 +8,6 @@ import {
   output,
   success,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
-
-function collectProperties(
-  vaultPath: string,
-  fileFilter?: string,
-): Map<string, number> {
-  const propCounts = new Map<string, number>();
-
-  const files = fileFilter
-    ? (() => {
-        const r = resolveFile(vaultPath, fileFilter);
-        return r ? [r] : [];
-      })()
-    : listFiles(vaultPath, { ext: "md" });
-
-  for (const file of files) {
-    const content = fs.readFileSync(path.join(vaultPath, file), "utf-8");
-    const { properties } = parseFrontmatter(content);
-    for (const key of Object.keys(properties)) {
-      propCounts.set(key, (propCounts.get(key) || 0) + 1);
-    }
-  }
-
-  return propCounts;
-}
 
 export async function properties(
   opts: OutputOptions & {
@@ -49,8 +18,8 @@ export async function properties(
     sort?: string;
   },
 ) {
-  const v = findVault(opts.vault);
-  const propCounts = collectProperties(v.contentPath, opts.file);
+  const n = new Napkin({ vault: opts.vault });
+  const propCounts = n.properties(opts.file);
 
   const entries = [...propCounts.entries()];
   if (opts.sort === "count") {
@@ -85,7 +54,7 @@ export async function propertySet(
     value?: string;
   },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name || opts.value === undefined) {
     error("Usage: property:set --name <name> --value <value> --file <file>");
     process.exit(EXIT_USER_ERROR);
@@ -95,35 +64,29 @@ export async function propertySet(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { path: string; property: string; value: unknown };
+  try {
+    result = n.propertySet(opts.file, opts.name, opts.value);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const fullPath = path.join(v.contentPath, resolved);
-  const content = fs.readFileSync(fullPath, "utf-8");
-
-  // Try to parse value as number/boolean/array
-  let parsedValue: unknown = opts.value;
-  if (opts.value === "true") parsedValue = true;
-  else if (opts.value === "false") parsedValue = false;
-  else if (!Number.isNaN(Number(opts.value)) && opts.value.trim() !== "")
-    parsedValue = Number(opts.value);
-
-  const updated = setProp(content, opts.name, parsedValue);
-  fs.writeFileSync(fullPath, updated);
-
   output(opts, {
-    json: () => ({ path: resolved, property: opts.name, value: parsedValue }),
-    human: () => success(`Set ${opts.name} = ${opts.value} on ${resolved}`),
+    json: () => result,
+    human: () =>
+      success(`Set ${result.property} = ${opts.value} on ${result.path}`),
   });
 }
 
 export async function propertyRemove(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name) {
     error("No property name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);
@@ -133,27 +96,28 @@ export async function propertyRemove(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { path: string; removed: string };
+  try {
+    result = n.propertyRemove(opts.file, opts.name);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const fullPath = path.join(v.contentPath, resolved);
-  const content = fs.readFileSync(fullPath, "utf-8");
-  const updated = removeProp(content, opts.name);
-  fs.writeFileSync(fullPath, updated);
-
   output(opts, {
-    json: () => ({ path: resolved, removed: opts.name }),
-    human: () => success(`Removed ${opts.name} from ${resolved}`),
+    json: () => result,
+    human: () => success(`Removed ${result.removed} from ${result.path}`),
   });
 }
 
 export async function propertyRead(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name) {
     error("No property name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);
@@ -163,19 +127,20 @@ export async function propertyRead(
     process.exit(EXIT_USER_ERROR);
   }
 
-  const resolved = resolveFile(v.contentPath, opts.file);
-  if (!resolved) {
-    fileNotFound(opts.file, suggestFile(v.contentPath, opts.file));
-    process.exit(EXIT_NOT_FOUND);
+  let result: { property: string; value: unknown };
+  try {
+    result = n.propertyGet(opts.file, opts.name);
+  } catch (e: unknown) {
+    const msg = (e as Error).message;
+    if (msg.startsWith("File not found:")) {
+      fileNotFound(opts.file, suggestFile(n.vault.contentPath, opts.file));
+      process.exit(EXIT_NOT_FOUND);
+    }
+    throw e;
   }
 
-  const fullPath = path.join(v.contentPath, resolved);
-  const content = fs.readFileSync(fullPath, "utf-8");
-  const { properties: props } = parseFrontmatter(content);
-  const value = props[opts.name];
-
   output(opts, {
-    json: () => ({ property: opts.name, value: value ?? null }),
-    human: () => console.log(value !== undefined ? String(value) : ""),
+    json: () => result,
+    human: () => console.log(result.value !== null ? String(result.value) : ""),
   });
 }

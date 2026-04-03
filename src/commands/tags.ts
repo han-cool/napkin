@@ -1,9 +1,5 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
+import { Napkin } from "../sdk.js";
 import { EXIT_USER_ERROR } from "../utils/exit-codes.js";
-import { listFiles, resolveFile } from "../utils/files.js";
-import { parseFrontmatter } from "../utils/frontmatter.js";
-import { extractTags } from "../utils/markdown.js";
 import {
   bold,
   dim,
@@ -11,42 +7,6 @@ import {
   type OutputOptions,
   output,
 } from "../utils/output.js";
-import { findVault } from "../utils/vault.js";
-
-function collectTags(
-  vaultPath: string,
-  fileFilter?: string,
-): { tagCounts: Map<string, number>; tagFiles: Map<string, string[]> } {
-  const tagCounts = new Map<string, number>();
-  const tagFiles = new Map<string, string[]>();
-
-  const files = fileFilter
-    ? (() => {
-        const r = resolveFile(vaultPath, fileFilter);
-        return r ? [r] : [];
-      })()
-    : listFiles(vaultPath, { ext: "md" });
-
-  for (const file of files) {
-    const content = fs.readFileSync(path.join(vaultPath, file), "utf-8");
-    const { properties } = parseFrontmatter(content);
-    const inlineTags = extractTags(content);
-
-    // Combine inline tags and frontmatter tags
-    const allTags = new Set(inlineTags);
-    if (Array.isArray(properties.tags)) {
-      for (const t of properties.tags) allTags.add(String(t));
-    }
-
-    for (const tag of allTags) {
-      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-      if (!tagFiles.has(tag)) tagFiles.set(tag, []);
-      tagFiles.get(tag)?.push(file);
-    }
-  }
-
-  return { tagCounts, tagFiles };
-}
 
 export async function tags(
   opts: OutputOptions & {
@@ -57,8 +17,8 @@ export async function tags(
     sort?: string;
   },
 ) {
-  const v = findVault(opts.vault);
-  const { tagCounts } = collectTags(v.contentPath, opts.file);
+  const n = new Napkin({ vault: opts.vault });
+  const { tagCounts } = n.tags(opts.file);
 
   const entries = [...tagCounts.entries()];
   if (opts.sort === "count") {
@@ -88,15 +48,13 @@ export async function tags(
 export async function tag(
   opts: OutputOptions & { vault?: string; name?: string; verbose?: boolean },
 ) {
-  const v = findVault(opts.vault);
+  const n = new Napkin({ vault: opts.vault });
   if (!opts.name) {
     error("No tag name specified. Use --name <tag>");
     process.exit(EXIT_USER_ERROR);
   }
 
-  const { tagCounts, tagFiles } = collectTags(v.contentPath);
-  const count = tagCounts.get(opts.name) || 0;
-  const files = tagFiles.get(opts.name) || [];
+  const { tag: _tag, count, files } = n.tagInfo(opts.name);
 
   output(opts, {
     json: () => ({ tag: opts.name, count, ...(opts.verbose ? { files } : {}) }),
