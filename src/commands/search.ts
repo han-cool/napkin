@@ -20,7 +20,7 @@ interface SearchOpts extends OutputOptions {
 }
 
 export async function search(opts: SearchOpts) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.query) {
     error("No query specified. Use --query <text>");
     process.exit(EXIT_USER_ERROR);

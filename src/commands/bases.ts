@@ -11,7 +11,7 @@ import {
 } from "../utils/output.js";
 
 export async function bases(opts: OutputOptions & { vault?: string }) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const files = n.bases();
 
   output(opts, {
@@ -29,7 +29,7 @@ export async function bases(opts: OutputOptions & { vault?: string }) {
 export async function baseViews(
   opts: OutputOptions & { vault?: string; file?: string; path?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   let views: { name: string; type: string }[];
   try {
     views = n.baseViews(opts);
@@ -57,7 +57,7 @@ export async function baseQuery(
     format?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   let result: BaseQueryResult;
   try {
     result = await n.baseQuery(opts, opts.view);
@@ -155,7 +155,7 @@ export async function baseCreate(
     content?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name) {
     error("No name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);

@@ -16,7 +16,7 @@ export async function outline(
     total?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);

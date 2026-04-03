@@ -3,7 +3,7 @@ import { EXIT_NOT_FOUND, EXIT_USER_ERROR } from "../utils/exit-codes.js";
 import { error, type OutputOptions, output, success } from "../utils/output.js";
 
 export async function daily(opts: OutputOptions & { vault?: string }) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.dailyEnsure();
 
   output(opts, {
@@ -13,7 +13,7 @@ export async function daily(opts: OutputOptions & { vault?: string }) {
 }
 
 export async function dailyPath(opts: OutputOptions & { vault?: string }) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const dp = n.dailyPath();
 
   output(opts, {
@@ -23,7 +23,7 @@ export async function dailyPath(opts: OutputOptions & { vault?: string }) {
 }
 
 export async function dailyRead(opts: OutputOptions & { vault?: string }) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   let result: { path: string; content: string };
   try {
@@ -42,7 +42,7 @@ export async function dailyRead(opts: OutputOptions & { vault?: string }) {
 export async function dailyAppend(
   opts: OutputOptions & { vault?: string; content?: string; inline?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.content) {
     error("No content specified. Use --content <text>");
     process.exit(EXIT_USER_ERROR);
@@ -59,7 +59,7 @@ export async function dailyAppend(
 export async function dailyPrepend(
   opts: OutputOptions & { vault?: string; content?: string; inline?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.content) {
     error("No content specified. Use --content <text>");
     process.exit(EXIT_USER_ERROR);

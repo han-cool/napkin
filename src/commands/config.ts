@@ -9,7 +9,7 @@ import {
 } from "../utils/output.js";
 
 export async function configShow(opts: OutputOptions & { vault?: string }) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const config = n.config();
 
   output(opts, {
@@ -23,7 +23,7 @@ export async function configShow(opts: OutputOptions & { vault?: string }) {
 export async function configSet(
   opts: OutputOptions & { vault?: string; key?: string; value?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   if (!opts.key || opts.value === undefined) {
     error("Usage: napkin config set --key <path> --value <value>");
@@ -45,7 +45,7 @@ export async function configSet(
 export async function configGet(
   opts: OutputOptions & { vault?: string; key?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   if (!opts.key) {
     error("Usage: napkin config get --key <path>");

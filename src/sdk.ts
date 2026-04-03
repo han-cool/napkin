@@ -105,8 +105,8 @@ import { findVault, type VaultInfo } from "./utils/vault.js";
 export class Napkin {
   readonly vault: VaultInfo;
 
-  constructor(options?: { vault?: string }) {
-    this.vault = findVault(options?.vault);
+  constructor(path: string) {
+    this.vault = findVault(path);
   }
 
   // ── Vault ───────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ export async function file(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!fileRef) {
     error("No file specified. Usage: obsidian-cli file <name>");
     process.exit(EXIT_NOT_FOUND);
@@ -55,7 +55,7 @@ export async function files(
     total?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.fileList({
     folder: opts.folder,
     ext: opts.ext,
@@ -76,7 +76,7 @@ export async function files(
 export async function folders(
   opts: OutputOptions & { vault?: string; folder?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.folders(opts.folder);
 
   output(opts, {
@@ -95,7 +95,7 @@ export async function folder(
   folderPath: string | undefined,
   opts: OutputOptions & { vault?: string; info?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!folderPath) {
     error("No folder specified. Usage: obsidian-cli folder <path>");
     process.exit(EXIT_NOT_FOUND);
@@ -142,7 +142,7 @@ export async function open(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string; newtab?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const vaultName = encodeURIComponent(n.vault.name);
 
   let uri: string;

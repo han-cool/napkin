@@ -16,7 +16,7 @@ export async function bookmarks(
     verbose?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const flat = n.bookmarks();
 
   output(opts, {
@@ -45,7 +45,7 @@ export async function bookmark(
     title?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   let entry: Bookmark;
   if (opts.file) {

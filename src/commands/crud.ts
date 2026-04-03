@@ -13,7 +13,7 @@ export async function read(
   fileRef: string | undefined,
   opts: OutputOptions & { vault?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!fileRef) {
     error("No file specified. Usage: napkin read <file>");
     process.exit(EXIT_USER_ERROR);
@@ -48,7 +48,7 @@ export async function create(
     open?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   let result: { path: string; created: boolean };
   try {
@@ -88,7 +88,7 @@ export async function append(
     inline?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use: napkin append <file> [content]");
     process.exit(EXIT_USER_ERROR);
@@ -127,7 +127,7 @@ export async function prepend(
     inline?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use: napkin prepend <file> [content]");
     process.exit(EXIT_USER_ERROR);
@@ -161,7 +161,7 @@ export async function prepend(
 export async function move(
   opts: OutputOptions & { vault?: string; file?: string; to?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -192,7 +192,7 @@ export async function move(
 export async function rename(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -223,7 +223,7 @@ export async function rename(
 export async function del(
   opts: OutputOptions & { vault?: string; file?: string; permanent?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);

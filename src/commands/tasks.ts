@@ -23,7 +23,7 @@ export async function tasks(
     status?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.tasks({
     file: opts.file,
     daily: opts.daily,
@@ -71,7 +71,7 @@ export async function task(
     daily?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
 
   let filePath: string;
   let lineNum: number;

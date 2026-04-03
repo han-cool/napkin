@@ -9,7 +9,7 @@ export async function aliases(
     verbose?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.aliases(opts.file);
 
   output(opts, {

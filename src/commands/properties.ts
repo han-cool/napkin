@@ -18,7 +18,7 @@ export async function properties(
     sort?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const propCounts = n.properties(opts.file);
 
   const entries = [...propCounts.entries()];
@@ -54,7 +54,7 @@ export async function propertySet(
     value?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name || opts.value === undefined) {
     error("Usage: property:set --name <name> --value <value> --file <file>");
     process.exit(EXIT_USER_ERROR);
@@ -86,7 +86,7 @@ export async function propertySet(
 export async function propertyRemove(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name) {
     error("No property name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);
@@ -117,7 +117,7 @@ export async function propertyRemove(
 export async function propertyRead(
   opts: OutputOptions & { vault?: string; file?: string; name?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name) {
     error("No property name specified. Use --name <name>");
     process.exit(EXIT_USER_ERROR);

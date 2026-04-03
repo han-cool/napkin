@@ -13,7 +13,7 @@ import {
 export async function canvases(
   opts: OutputOptions & { vault?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const files = n.canvases();
 
   output(opts, {
@@ -33,7 +33,7 @@ export async function canvases(
 export async function canvasRead(
   opts: OutputOptions & { vault?: string; file?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -85,7 +85,7 @@ export async function canvasRead(
 export async function canvasNodes(
   opts: OutputOptions & { vault?: string; file?: string; type?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -124,7 +124,7 @@ export async function canvasNodes(
 export async function canvasCreate(
   opts: OutputOptions & { vault?: string; file?: string; path?: string },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file name specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -161,7 +161,7 @@ export async function canvasAddNode(
     color?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No canvas file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -193,7 +193,7 @@ export async function canvasAddEdge(
     color?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No canvas file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -234,7 +234,7 @@ export async function canvasRemoveNode(
     id?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file || !opts.id) {
     error("Both --file and --id required");
     process.exit(EXIT_USER_ERROR);

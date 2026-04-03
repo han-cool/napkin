@@ -17,7 +17,7 @@ export async function backlinks(
     total?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -47,7 +47,7 @@ export async function backlinks(
 export async function links(
   opts: OutputOptions & { vault?: string; file?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.file) {
     error("No file specified. Use --file <name>");
     process.exit(EXIT_USER_ERROR);
@@ -82,7 +82,7 @@ export async function unresolvedLinks(
     verbose?: boolean;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const entries = n.linksUnresolved();
 
   output(opts, {
@@ -114,7 +114,7 @@ export async function unresolvedLinks(
 export async function orphans(
   opts: OutputOptions & { vault?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.orphans();
 
   output(opts, {
@@ -129,7 +129,7 @@ export async function orphans(
 export async function deadends(
   opts: OutputOptions & { vault?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.deadends();
 
   output(opts, {

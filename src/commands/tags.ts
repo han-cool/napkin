@@ -17,7 +17,7 @@ export async function tags(
     sort?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const { tagCounts } = n.tags(opts.file);
 
   const entries = [...tagCounts.entries()];
@@ -48,7 +48,7 @@ export async function tags(
 export async function tag(
   opts: OutputOptions & { vault?: string; name?: string; verbose?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name) {
     error("No tag name specified. Use --name <tag>");
     process.exit(EXIT_USER_ERROR);

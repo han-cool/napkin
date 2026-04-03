@@ -8,7 +8,7 @@ export async function overview(
     keywords?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const result = n.overview({
     depth: opts.depth ? Number.parseInt(opts.depth, 10) : undefined,
     keywords: opts.keywords ? Number.parseInt(opts.keywords, 10) : undefined,

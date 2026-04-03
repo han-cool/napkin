@@ -12,7 +12,7 @@ import {
 export async function templates(
   opts: OutputOptions & { vault?: string; total?: boolean },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const files = n.templates();
 
   output(opts, {
@@ -32,7 +32,7 @@ export async function templateRead(
     title?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   if (!opts.name) {
     error("No template name specified. Use --name <template>");
     process.exit(EXIT_USER_ERROR);
@@ -62,7 +62,7 @@ export async function templateInsert(
     file?: string;
   },
 ) {
-  const n = new Napkin({ vault: opts.vault });
+  const n = new Napkin(opts.vault || process.cwd());
   const templateName = opts.name;
   const targetFile = opts.file;
   if (!templateName) {
