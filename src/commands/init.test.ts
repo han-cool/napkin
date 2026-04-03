@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe("init command", () => {
-  test("creates .napkin/ with config and .obsidian/", async () => {
+  test("creates .napkin/ with config and .obsidian/ as sibling", async () => {
     const logs: string[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => logs.push(args.map(String).join(" "));
@@ -25,25 +25,40 @@ describe("init command", () => {
     const data = JSON.parse(logs.join(""));
     expect(data.created).toBe(true);
 
-    const nap = path.join(tmpDir, ".napkin");
-    expect(fs.existsSync(nap)).toBe(true);
-    expect(fs.existsSync(path.join(nap, "config.json"))).toBe(true);
-    // .obsidian/ synced from config
-    expect(fs.existsSync(path.join(nap, ".obsidian"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, ".obsidian", "app.json"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, ".obsidian", "daily-notes.json"))).toBe(
+    // .napkin/ holds config
+    expect(fs.existsSync(path.join(tmpDir, ".napkin"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "config.json"))).toBe(
       true,
     );
-    expect(fs.existsSync(path.join(nap, ".obsidian", "templates.json"))).toBe(
+
+    // Config has vault.root pointing to parent
+    const config = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, ".napkin", "config.json"), "utf-8"),
+    );
+    expect(config.vault.root).toBe("..");
+    expect(config.vault.obsidian).toBe("../.obsidian");
+
+    // .obsidian/ is sibling to .napkin/
+    expect(fs.existsSync(path.join(tmpDir, ".obsidian"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".obsidian", "app.json"))).toBe(
       true,
+    );
+    expect(
+      fs.existsSync(path.join(tmpDir, ".obsidian", "daily-notes.json")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmpDir, ".obsidian", "templates.json")),
+    ).toBe(true);
+
+    // No .obsidian/ inside .napkin/
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", ".obsidian"))).toBe(
+      false,
     );
   });
 
   test("reports not created when already initialized", async () => {
-    // First init
     await init({ quiet: true, path: tmpDir });
 
-    // Second init
     const logs: string[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => logs.push(args.map(String).join(" "));
@@ -55,7 +70,6 @@ describe("init command", () => {
   });
 
   test("creates config when only .napkin/ dir exists", async () => {
-    // Create only .napkin/ with no config
     fs.mkdirSync(path.join(tmpDir, ".napkin"));
 
     const logs: string[] = [];
@@ -67,12 +81,13 @@ describe("init command", () => {
     const data = JSON.parse(logs.join(""));
     expect(data.created).toBe(false);
 
-    const nap = path.join(tmpDir, ".napkin");
-    expect(fs.existsSync(path.join(nap, "config.json"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, ".obsidian"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "config.json"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(tmpDir, ".obsidian"))).toBe(true);
   });
 
-  test("scaffolds template with dirs, files, and NAPKIN.md", async () => {
+  test("scaffolds template with dirs, files, and NAPKIN.md in project dir", async () => {
     const logs: string[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => logs.push(args.map(String).join(" "));
@@ -86,13 +101,22 @@ describe("init command", () => {
     expect(data.files).toContain("decisions/");
     expect(data.files).toContain("guides/");
 
-    const nap = path.join(tmpDir, ".napkin");
-    expect(fs.existsSync(path.join(nap, "NAPKIN.md"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, "decisions"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, "guides/_about.md"))).toBe(true);
-    // Templates dir with note templates
-    expect(fs.existsSync(path.join(nap, "Templates/Decision.md"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, "Templates/Guide.md"))).toBe(true);
+    // Content in project dir, not .napkin/
+    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "guides/_about.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Decision.md"))).toBe(
+      true,
+    );
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Guide.md"))).toBe(true);
+
+    // NOT inside .napkin/
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "NAPKIN.md"))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "decisions"))).toBe(
+      false,
+    );
   });
 
   test("template on existing vault adds template files", async () => {
@@ -105,10 +129,11 @@ describe("init command", () => {
 
     const data = JSON.parse(logs.join(""));
     expect(data.template).toBe("company");
-    const nap2 = path.join(tmpDir, ".napkin");
-    expect(fs.existsSync(path.join(nap2, "runbooks"))).toBe(true);
-    expect(fs.existsSync(path.join(nap2, "NAPKIN.md"))).toBe(true);
-    expect(fs.existsSync(path.join(nap2, "Templates/Runbook.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "runbooks"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "Templates/Runbook.md"))).toBe(
+      true,
+    );
   });
 
   test("scaffolds all 5 templates", async () => {
@@ -130,16 +155,15 @@ describe("init command", () => {
       expect(data.files).toContain("NAPKIN.md");
       expect(data.files.length).toBeGreaterThan(3);
 
-      const nap = path.join(dir, ".napkin");
-      expect(fs.existsSync(path.join(nap, "NAPKIN.md"))).toBe(true);
-      expect(fs.existsSync(path.join(nap, "Templates"))).toBe(true);
+      // Content in project dir
+      expect(fs.existsSync(path.join(dir, "NAPKIN.md"))).toBe(true);
+      expect(fs.existsSync(path.join(dir, "Templates"))).toBe(true);
 
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  test("creates sibling layout when .obsidian/ already exists", async () => {
-    // Simulate existing Obsidian vault
+  test("preserves existing .obsidian/ content", async () => {
     fs.mkdirSync(path.join(tmpDir, ".obsidian"), { recursive: true });
     fs.writeFileSync(
       path.join(tmpDir, ".obsidian", "app.json"),
@@ -155,23 +179,23 @@ describe("init command", () => {
     const data = JSON.parse(logs.join(""));
     expect(data.created).toBe(true);
 
-    // .napkin/ created as sibling to .obsidian/
-    const nap = path.join(tmpDir, ".napkin");
-    expect(fs.existsSync(nap)).toBe(true);
-    expect(fs.existsSync(path.join(nap, "config.json"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".napkin"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "config.json"))).toBe(
+      true,
+    );
 
-    // Config should have vault layout pointing to parent
     const config = JSON.parse(
-      fs.readFileSync(path.join(nap, "config.json"), "utf-8"),
+      fs.readFileSync(path.join(tmpDir, ".napkin", "config.json"), "utf-8"),
     );
     expect(config.vault.root).toBe("..");
     expect(config.vault.obsidian).toBe("../.obsidian");
 
-    // .obsidian/ config synced to the EXISTING .obsidian/, not inside .napkin/
+    // Synced napkin config into existing .obsidian/
     expect(
       fs.existsSync(path.join(tmpDir, ".obsidian", "daily-notes.json")),
     ).toBe(true);
-    // Original .obsidian/ content preserved
+
+    // Original content preserved
     const appJson = JSON.parse(
       fs.readFileSync(path.join(tmpDir, ".obsidian", "app.json"), "utf-8"),
     );
@@ -179,24 +203,7 @@ describe("init command", () => {
     expect(appJson.alwaysUpdateLinks).toBe(true);
 
     // No .obsidian/ inside .napkin/
-    expect(fs.existsSync(path.join(nap, ".obsidian"))).toBe(false);
-  });
-
-  test("sibling layout with template scaffolds content at vault root (parent dir)", async () => {
-    // Simulate existing Obsidian vault
-    fs.mkdirSync(path.join(tmpDir, ".obsidian"), { recursive: true });
-
-    await init({ quiet: true, path: tmpDir, template: "coding" });
-
-    // Template content should be in tmpDir (vault root), not .napkin/
-    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(true);
-    expect(fs.existsSync(path.join(tmpDir, "Templates"))).toBe(true);
-    // NOT inside .napkin/
-    expect(fs.existsSync(path.join(tmpDir, ".napkin", "NAPKIN.md"))).toBe(
-      false,
-    );
-    expect(fs.existsSync(path.join(tmpDir, ".napkin", "decisions"))).toBe(
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", ".obsidian"))).toBe(
       false,
     );
   });
@@ -217,21 +224,35 @@ describe("init command", () => {
     expect(exitCode).toBe(1);
   });
 
-  test("vault root is .napkin/ directory", async () => {
+  test("sibling layout is default", async () => {
     await init({ quiet: true, path: tmpDir, template: "coding" });
 
-    const nap = path.join(tmpDir, ".napkin");
-    // .napkin/ is the vault root
-    expect(fs.existsSync(nap)).toBe(true);
-    // .obsidian/ lives inside .napkin/
-    expect(fs.existsSync(path.join(nap, ".obsidian"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, ".obsidian", "app.json"))).toBe(true);
-    // Template content is inside .napkin/
-    expect(fs.existsSync(path.join(nap, "decisions"))).toBe(true);
-    expect(fs.existsSync(path.join(nap, "NAPKIN.md"))).toBe(true);
-    // Nothing scaffolded in parent dir
-    expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(false);
-    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(false);
-    expect(fs.existsSync(path.join(tmpDir, "Templates"))).toBe(false);
+    // .napkin/ holds config only
+    expect(fs.existsSync(path.join(tmpDir, ".napkin"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(tmpDir, ".napkin", "config.json")),
+    ).toBe(true);
+
+    // .obsidian/ is sibling
+    expect(fs.existsSync(path.join(tmpDir, ".obsidian"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, ".obsidian", "app.json"))).toBe(
+      true,
+    );
+
+    // Content in project dir
+    expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, "Templates"))).toBe(true);
+
+    // Nothing inside .napkin/ except config
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "NAPKIN.md"))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", "decisions"))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(tmpDir, ".napkin", ".obsidian"))).toBe(
+      false,
+    );
   });
 });

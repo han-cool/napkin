@@ -64,10 +64,9 @@ export function initVault(opts: {
   }
   const targetDir = path.resolve(opts.path);
   const napkinDir = path.join(targetDir, ".napkin");
-  const existingObsidian = path.join(targetDir, ".obsidian");
-  const isSiblingLayout =
-    fs.existsSync(existingObsidian) &&
-    fs.statSync(existingObsidian).isDirectory();
+  const obsidianDir = path.join(targetDir, ".obsidian");
+  const hasExistingObsidian =
+    fs.existsSync(obsidianDir) && fs.statSync(obsidianDir).isDirectory();
 
   const napkinExists = fs.existsSync(napkinDir);
   const configExists = fs.existsSync(path.join(napkinDir, "config.json"));
@@ -87,18 +86,18 @@ export function initVault(opts: {
   }
 
   if (!fs.existsSync(path.join(napkinDir, "config.json"))) {
-    if (isSiblingLayout) {
-      const config: NapkinConfig = {
-        ...DEFAULT_CONFIG,
-        vault: { root: "..", obsidian: "../.obsidian" },
-      };
-      saveConfig(napkinDir, config, existingObsidian);
-    } else {
-      saveConfig(napkinDir, DEFAULT_CONFIG);
-    }
+    const config: NapkinConfig = {
+      ...DEFAULT_CONFIG,
+      vault: { root: "..", obsidian: "../.obsidian" },
+    };
+    saveConfig(
+      napkinDir,
+      config,
+      hasExistingObsidian ? obsidianDir : undefined,
+    );
   }
 
-  const contentRoot = isSiblingLayout ? targetDir : napkinDir;
+  const contentRoot = targetDir;
 
   let templateFiles: string[] = [];
   if (opts.template) {
@@ -110,7 +109,7 @@ export function initVault(opts: {
     path: napkinDir,
     napkin: !napkinExists,
     configCreated: !configExists,
-    siblingLayout: isSiblingLayout,
+    siblingLayout: hasExistingObsidian,
     template: opts.template || null,
     files: templateFiles,
   };
@@ -129,10 +128,9 @@ export function scaffoldVault(
 ): ScaffoldResult {
   const resolved = path.resolve(targetPath);
   const napkinDir = path.join(resolved, ".napkin");
-  const existingObsidian = path.join(resolved, ".obsidian");
-  const isSiblingLayout =
-    fs.existsSync(existingObsidian) &&
-    fs.statSync(existingObsidian).isDirectory();
+  const obsidianDir = path.join(resolved, ".obsidian");
+  const hasExistingObsidian =
+    fs.existsSync(obsidianDir) && fs.statSync(obsidianDir).isDirectory();
 
   const napkinExisted = fs.existsSync(napkinDir);
 
@@ -141,18 +139,18 @@ export function scaffoldVault(
   }
 
   if (!fs.existsSync(path.join(napkinDir, "config.json"))) {
-    if (isSiblingLayout) {
-      const config: NapkinConfig = {
-        ...DEFAULT_CONFIG,
-        vault: { root: "..", obsidian: "../.obsidian" },
-      };
-      saveConfig(napkinDir, config, existingObsidian);
-    } else {
-      saveConfig(napkinDir, DEFAULT_CONFIG);
-    }
+    const config: NapkinConfig = {
+      ...DEFAULT_CONFIG,
+      vault: { root: "..", obsidian: "../.obsidian" },
+    };
+    saveConfig(
+      napkinDir,
+      config,
+      hasExistingObsidian ? obsidianDir : undefined,
+    );
   }
 
-  const contentRoot = isSiblingLayout ? resolved : napkinDir;
+  const contentRoot = resolved;
   let files: string[] = [];
 
   if (template) {

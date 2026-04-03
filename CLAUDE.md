@@ -27,17 +27,17 @@ bun run check                # Biome lint + format
 
 ## Vault Structure
 
-`.napkin/` is the vault root — all content lives inside it:
+`.napkin/` holds config. Content lives in the project directory:
 
 ```
 project/
-  .napkin/                  # The vault
-    NAPKIN.md               # Level 0 context note
+  .napkin/                  # napkin config
     config.json             # Unified config (syncs to .obsidian/)
-    .obsidian/              # Obsidian compatibility (auto-generated)
-    decisions/              # Template-defined dirs
-    architecture/
-    Templates/              # Note templates
+  .obsidian/                # Obsidian config (auto-generated)
+  NAPKIN.md                 # Level 0 context note
+  decisions/                # Template-defined dirs
+  architecture/
+  Templates/                # Note templates
   src/                      # Project source (not in vault)
 ```
 
@@ -45,7 +45,7 @@ project/
 
 - **Output triple**: Every command supports `--json`, `--quiet`, and human-readable output
 - **Vault auto-detect**: Walks up from cwd looking for `.napkin/` directory
-- **`.napkin/` is the vault root**: All vault content lives inside `.napkin/`, not the project root
+- **`.napkin/` is config only**: Vault content lives in the project root, `.napkin/` holds `config.json`
 - **File resolution**: positional `<file>` or `--file` resolves by name (like wikilinks), `--path` requires exact path from vault root
 - **No Obsidian dependency**: Pure file-system operations on markdown files
 - **Progressive disclosure**: overview → search → read (4 levels, L0-L3)

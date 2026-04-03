@@ -32,13 +32,14 @@ describe("findVault", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "napkin-auto-"));
     try {
       const result = findVault(tmpDir);
-      expect(result.contentPath).toBe(path.join(tmpDir, ".napkin"));
+      expect(result.contentPath).toBe(tmpDir);
+      expect(result.configPath).toBe(path.join(tmpDir, ".napkin"));
+      expect(result.obsidianPath).toBe(path.join(tmpDir, ".obsidian"));
       expect(fs.existsSync(path.join(tmpDir, ".napkin", "config.json"))).toBe(
         true,
       );
-      expect(fs.existsSync(path.join(tmpDir, ".napkin", "NAPKIN.md"))).toBe(
-        true,
-      );
+      expect(fs.existsSync(path.join(tmpDir, "NAPKIN.md"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpDir, ".obsidian"))).toBe(true);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

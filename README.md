@@ -106,17 +106,17 @@ See [`bench/README.md`](bench/README.md) for details and usage.
 
 ## Vault Structure
 
-`.napkin/` is the vault root - all content lives inside it:
+`.napkin/` holds config. Content lives in the project directory alongside `.obsidian/`:
 
 ```
 my-project/
-  .napkin/                  # The vault
-    NAPKIN.md               # Context note (Level 0)
+  .napkin/                  # napkin config
     config.json             # Unified config (syncs to .obsidian/)
-    decisions/              # Template-defined directories
-    architecture/
-    Templates/              # Note templates
-    .obsidian/              # Obsidian compatibility (auto-generated)
+  .obsidian/                # Obsidian config (auto-generated)
+  NAPKIN.md                 # Context note (Level 0)
+  decisions/                # Template-defined directories
+  architecture/
+  Templates/                # Note templates
   src/                      # Your project (not in vault)
 ```
 

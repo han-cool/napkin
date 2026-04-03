@@ -359,9 +359,7 @@ describe("static", () => {
       expect(result.created).toBe(true);
       expect(result.template).toBe("coding");
       expect(result.files.length).toBeGreaterThan(0);
-      expect(fs.existsSync(path.join(tmpDir, ".napkin", "decisions"))).toBe(
-        true,
-      );
+      expect(fs.existsSync(path.join(tmpDir, "decisions"))).toBe(true);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -386,7 +384,7 @@ describe("static", () => {
     try {
       const n = new Napkin(tmpDir);
       expect(fs.existsSync(path.join(tmpDir, ".napkin"))).toBe(true);
-      expect(n.vault.contentPath).toContain(".napkin");
+      expect(n.vault.contentPath).toBe(tmpDir);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

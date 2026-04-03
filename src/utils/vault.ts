@@ -4,7 +4,7 @@ import * as path from "node:path";
 export interface VaultInfo {
   /** Vault display name (derived from content root directory) */
   name: string;
-  /** Where vault content lives (.napkin/ for embedded, parent dir for sibling/nested) */
+  /** Where vault content lives (project root, parent of .napkin/) */
   contentPath: string;
   /** Where config.json lives (always the .napkin/ directory) */
   configPath: string;
@@ -48,7 +48,8 @@ export function findVault(startDir?: string): VaultInfo {
 }
 
 /**
- * Create a bare vault at the given directory: .napkin/ + config.json + NAPKIN.md.
+ * Create a bare vault at the given directory.
+ * Sibling layout: .napkin/ (config) + .obsidian/ + NAPKIN.md all in projectDir.
  */
 function createBareVault(projectDir: string): VaultInfo {
   const napkinDir = path.join(projectDir, ".napkin");
@@ -56,7 +57,6 @@ function createBareVault(projectDir: string): VaultInfo {
 
   const configFile = path.join(napkinDir, "config.json");
   if (!fs.existsSync(configFile)) {
-    // Inline minimal default config to avoid circular dependency with utils/config
     fs.writeFileSync(
       configFile,
       JSON.stringify(
@@ -64,6 +64,7 @@ function createBareVault(projectDir: string): VaultInfo {
           overview: { depth: 3, keywords: 8 },
           search: { limit: 30, snippetLines: 0 },
           daily: { folder: "daily", format: "YYYY-MM-DD" },
+          vault: { root: "..", obsidian: "../.obsidian" },
         },
         null,
         2,
@@ -71,23 +72,27 @@ function createBareVault(projectDir: string): VaultInfo {
     );
   }
 
-  const napkinMd = path.join(napkinDir, "NAPKIN.md");
+  const napkinMd = path.join(projectDir, "NAPKIN.md");
   if (!fs.existsSync(napkinMd)) {
     fs.writeFileSync(napkinMd, "");
   }
 
-  const obsidianPath = path.join(napkinDir, ".obsidian");
+  const obsidianDir = path.join(projectDir, ".obsidian");
+  if (!fs.existsSync(obsidianDir)) {
+    fs.mkdirSync(obsidianDir, { recursive: true });
+  }
+
   return {
     name: path.basename(projectDir),
-    contentPath: napkinDir,
+    contentPath: projectDir,
     configPath: napkinDir,
-    obsidianPath,
+    obsidianPath: obsidianDir,
   };
 }
 
 /**
  * Resolve vault layout from .napkin/config.json vault paths.
- * If no vault config exists, assumes embedded layout (.napkin/ is the vault root).
+ * If no vault config exists, defaults to sibling layout (content in project dir).
  */
 function resolveVaultLayout(napkinDir: string, projectDir: string): VaultInfo {
   const configPath = path.join(napkinDir, "config.json");
@@ -101,7 +106,6 @@ function resolveVaultLayout(napkinDir: string, projectDir: string): VaultInfo {
   }
 
   if (vaultConfig?.root) {
-    // Layout specified in config — resolve relative to .napkin/ dir
     const contentPath = path.resolve(napkinDir, vaultConfig.root);
     const obsidianPath = vaultConfig.obsidian
       ? path.resolve(napkinDir, vaultConfig.obsidian)
@@ -114,7 +118,7 @@ function resolveVaultLayout(napkinDir: string, projectDir: string): VaultInfo {
     };
   }
 
-  // Default: embedded layout — .napkin/ is the vault root
+  // Legacy: embedded layout — .napkin/ is the vault root (no vault.root in config)
   return {
     name: path.basename(projectDir),
     contentPath: napkinDir,
