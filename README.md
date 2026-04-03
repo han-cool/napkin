@@ -35,7 +35,7 @@ napkin daily append "- [ ] Review PR"
 
 ## SDK
 
-napkin is also a library. No CLI, no stdout — just data:
+napkin is also a library. No CLI, no stdout - just data:
 
 ```typescript
 import { Napkin } from "napkin-ai";
@@ -105,7 +105,7 @@ See [`bench/README.md`](bench/README.md) for details and usage.
 
 ## Vault Structure
 
-`.napkin/` is the vault root — all content lives inside it:
+`.napkin/` is the vault root - all content lives inside it:
 
 ```
 my-project/
@@ -175,7 +175,7 @@ napkin search "TODO" --no-snippets    # Files only
 echo "piped content" | napkin append "Note"  # Stdin support
 ```
 
-### Files & Folders — `napkin file`
+### Files & Folders - `napkin file`
 
 ```bash
 napkin file info <name>               # File info (path, size, dates)
@@ -188,7 +188,7 @@ napkin file outline "note"            # Heading tree
 napkin file wordcount "note"          # Word + character count
 ```
 
-### Daily Notes — `napkin daily`
+### Daily Notes - `napkin daily`
 
 ```bash
 napkin daily today                    # Create today's daily note
@@ -198,7 +198,7 @@ napkin daily append "- [ ] Buy groceries"
 napkin daily prepend "## Morning"
 ```
 
-### Tags — `napkin tag`
+### Tags - `napkin tag`
 
 ```bash
 napkin tag list                       # List all tags
@@ -208,7 +208,7 @@ napkin tag info --name "project"      # Tag info
 napkin tag aliases                    # List all aliases
 ```
 
-### Properties — `napkin property`
+### Properties - `napkin property`
 
 ```bash
 napkin property list                  # List all properties
@@ -218,7 +218,7 @@ napkin property set --file "note" --name status --value done
 napkin property remove --file "note" --name status
 ```
 
-### Tasks — `napkin task`
+### Tasks - `napkin task`
 
 ```bash
 napkin task list                      # List all tasks
@@ -228,7 +228,7 @@ napkin task list --daily              # Today's daily note tasks
 napkin task show --file "note" --line 3 --toggle
 ```
 
-### Links — `napkin link`
+### Links - `napkin link`
 
 ```bash
 napkin link out --file "note"         # Outgoing links
@@ -238,7 +238,7 @@ napkin link orphans                   # No incoming links
 napkin link deadends                  # No outgoing links
 ```
 
-### Bases — `napkin base`
+### Bases - `napkin base`
 
 ```bash
 napkin base list                      # List .base files
@@ -248,7 +248,7 @@ napkin base query --file "projects" --view "Active" --format csv
 napkin base create --file "projects" --name "New Item"
 ```
 
-### Canvas — `napkin canvas`
+### Canvas - `napkin canvas`
 
 ```bash
 napkin canvas list                    # List .canvas files
@@ -260,7 +260,7 @@ napkin canvas add-edge --file "Board" --from abc1 --to def2
 napkin canvas remove-node --file "Board" --id abc1
 ```
 
-### Templates — `napkin template`
+### Templates - `napkin template`
 
 ```bash
 napkin template list                  # List note templates
@@ -268,14 +268,14 @@ napkin template read --name "Daily Note"
 napkin template insert --file "note" --name "Template"
 ```
 
-### Bookmarks — `napkin bookmark`
+### Bookmarks - `napkin bookmark`
 
 ```bash
 napkin bookmark list                  # List bookmarks
 napkin bookmark add --file "note"     # Bookmark a file
 ```
 
-### Config — `napkin config`
+### Config - `napkin config`
 
 ```bash
 napkin config show                    # Show full config
@@ -283,7 +283,7 @@ napkin config get --key search.limit  # Get a value
 napkin config set --key search.limit --value 50
 ```
 
-### Graph — `napkin graph`
+### Graph - `napkin graph`
 
 ```bash
 napkin graph                          # Interactive vault graph
@@ -296,8 +296,8 @@ Force-directed graph of vault notes and wikilinks. Click nodes to read content i
 ## File Resolution
 
 Files can be referenced two ways:
-- **By name** (wikilink-style): `"Active Projects"` — searches all `.md` files by basename
-- **By path**: `"Projects/Active Projects.md"` — exact path from vault root
+- **By name** (wikilink-style): `"Active Projects"` - searches all `.md` files by basename
+- **By path**: `"Projects/Active Projects.md"` - exact path from vault root
 
 ---
 
@@ -307,7 +307,7 @@ Files can be referenced two ways:
 src/
   index.ts       # SDK exports: Napkin class + all types
   sdk.ts         # Napkin class wrapping core modules
-  main.ts        # CLI entry (Commander) — thin wrapper
+  main.ts        # CLI entry (Commander) - thin wrapper
   core/          # Pure logic, returns data, no stdout
   commands/      # CLI wrappers: parse args → sdk → format + print
   utils/         # Shared utilities (files, frontmatter, markdown, etc.)
