@@ -117,11 +117,17 @@ export function resolveFile(vaultPath: string, fileRef: string): string | null {
   // Wikilink-style: search by basename
   const target = fileRef.toLowerCase();
   const allFiles = listFiles(vaultPath, { ext: "md" });
+  const matches: string[] = [];
   for (const file of allFiles) {
     const basename = path.basename(file, ".md").toLowerCase();
-    if (basename === target) return file;
+    if (basename === target) matches.push(file);
   }
-  return null;
+  if (matches.length > 1) {
+    throw new Error(
+      `Ambiguous file reference "${fileRef}" matches ${matches.length} files: ${matches.join(", ")}. Use the full path to disambiguate.`,
+    );
+  }
+  return matches[0] ?? null;
 }
 
 /**
